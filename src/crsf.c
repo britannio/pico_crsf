@@ -26,7 +26,7 @@ uart_inst_t *_uart;
 uint8_t _incoming_frame[64];
 uint16_t _rc_channels[CRSF_MAX_CHANNELS];
 link_statistics_t _link_statistics;
-bool failsafe = false;
+bool _failsafe = false;
 uint8_t link_quality_threshold = 70;
 uint8_t rssi_threshold = 105;
 
@@ -51,31 +51,69 @@ enum
 
 bool frameHasData[TELEMETRY_FRAME_TYPES] = {false};
 
+/**
+ * Sets the callback function to be called when RC channels are received.
+ *
+ * @param callback A function pointer to the callback function that takes an array of uint16_t channels as input.
+ */
 void crsf_set_on_rc_channels(void (*callback)(const uint16_t channels[16]))
 {
   rc_channels_callback = callback;
 }
 
+/**
+ * Sets the callback function for link statistics.
+ *
+ * This function sets the callback function that will be called when link statistics are available.
+ *
+ * @param callback A pointer to the callback function.
+ */
 void crsf_set_on_link_statistics(void (*callback)(const link_statistics_t *link_stats))
 {
   link_statistics_callback = callback;
 }
 
+/**
+ * Sets the callback function to be called when a failsafe event occurs.
+ *
+ * @param callback A function pointer to the callback function that takes a boolean parameter indicating the failsafe status.
+ */
 void crsf_set_on_failsafe(void (*callback)(const bool failsafe))
 {
   failsafe_callback = callback;
 }
 
+
+/**
+ * Sets the link quality threshold for CRSF communication.
+ *
+ * The link quality threshold determines the minimum acceptable link quality for CRSF communication.
+ * A lower threshold allows for more frames to be lost before the failsafe is triggered.
+ *
+ * @param threshold The link quality threshold value, ranging from 0 to 100.
+ */
 void crsf_set_link_quality_threshold(uint8_t threshold)
 {
   link_quality_threshold = threshold;
 }
 
+/**
+ * Sets the RSSI (Received Signal Strength Indicator) threshold for CRSF communication.
+ *
+ * @param threshold The RSSI threshold value to set.
+ */
 void crsf_set_rssi_threshold(uint8_t threshold)
 {
   rssi_threshold = threshold;
 }
 
+/**
+ * Initializes the CRSF communication by setting up the UART and configuring the RX and TX pins.
+ *
+ * @param uart The UART instance to be used for CRSF communication.
+ * @param rx The RX pin number.
+ * @param tx The TX pin number.
+ */
 void crsf_begin(uart_inst_t *uart, uint8_t rx, uint8_t tx)
 {
   // TODO support PIO UART
@@ -86,6 +124,11 @@ void crsf_begin(uart_inst_t *uart, uint8_t rx, uint8_t tx)
   gpio_set_function(tx, GPIO_FUNC_UART);
 }
 
+/**
+ * @brief Ends the CRSF communication.
+ * 
+ * This function deinitializes the UART used for CRSF communication.
+ */
 void crsf_end()
 {
   uart_deinit(_uart);
@@ -93,23 +136,23 @@ void crsf_end()
 
 void _process_rc_channels()
 {
-  // TODO replace with packed struct
-  _rc_channels[0] = ((_incoming_frame[3] | _incoming_frame[4] << 8) & 0x07FF);
-  _rc_channels[1] = ((_incoming_frame[4] >> 3 | _incoming_frame[5] << 5) & 0x07FF);
-  _rc_channels[2] = ((_incoming_frame[5] >> 6 | _incoming_frame[6] << 2 | _incoming_frame[7] << 10) & 0x07FF);
-  _rc_channels[3] = ((_incoming_frame[7] >> 1 | _incoming_frame[8] << 7) & 0x07FF);
-  _rc_channels[4] = ((_incoming_frame[8] >> 4 | _incoming_frame[9] << 4) & 0x07FF);
-  _rc_channels[5] = ((_incoming_frame[9] >> 7 | _incoming_frame[10] << 1 | _incoming_frame[11] << 9) & 0x07FF);
-  _rc_channels[6] = ((_incoming_frame[11] >> 2 | _incoming_frame[12] << 6) & 0x07FF);
-  _rc_channels[7] = ((_incoming_frame[12] >> 5 | _incoming_frame[13] << 3) & 0x07FF);
-  _rc_channels[8] = ((_incoming_frame[14] | _incoming_frame[15] << 8) & 0x07FF);
-  _rc_channels[9] = ((_incoming_frame[15] >> 3 | _incoming_frame[16] << 5) & 0x07FF);
-  _rc_channels[10] = ((_incoming_frame[16] >> 6 | _incoming_frame[17] << 2 | _incoming_frame[18] << 10) & 0x07FF);
-  _rc_channels[11] = ((_incoming_frame[18] >> 1 | _incoming_frame[19] << 7) & 0x07FF);
-  _rc_channels[12] = ((_incoming_frame[19] >> 4 | _incoming_frame[20] << 4) & 0x07FF);
-  _rc_channels[13] = ((_incoming_frame[20] >> 7 | _incoming_frame[21] << 1 | _incoming_frame[22] << 9) & 0x07FF);
-  _rc_channels[14] = ((_incoming_frame[22] >> 2 | _incoming_frame[23] << 6) & 0x07FF);
-  _rc_channels[15] = ((_incoming_frame[23] >> 5 | _incoming_frame[24] << 3) & 0x07FF);
+  const rc_channels_t *rc_channels_payload = (const rc_channels_t *)&_incoming_frame[3];
+  _rc_channels[0] = rc_channels_payload->channel0;
+  _rc_channels[1] = rc_channels_payload->channel1;
+  _rc_channels[2] = rc_channels_payload->channel2;
+  _rc_channels[3] = rc_channels_payload->channel3;
+  _rc_channels[4] = rc_channels_payload->channel4;
+  _rc_channels[5] = rc_channels_payload->channel5;
+  _rc_channels[6] = rc_channels_payload->channel6;
+  _rc_channels[7] = rc_channels_payload->channel7;
+  _rc_channels[8] = rc_channels_payload->channel8;
+  _rc_channels[9] = rc_channels_payload->channel9;
+  _rc_channels[10] = rc_channels_payload->channel10;
+  _rc_channels[11] = rc_channels_payload->channel11;
+  _rc_channels[12] = rc_channels_payload->channel12;
+  _rc_channels[13] = rc_channels_payload->channel13;
+  _rc_channels[14] = rc_channels_payload->channel14;
+  _rc_channels[15] = rc_channels_payload->channel15;
 }
 
 const uint16_t tx_power_table[9] = {
@@ -141,6 +184,18 @@ bool calculate_failsafe()
   return _link_statistics.link_quality <= link_quality_threshold || _link_statistics.rssi >= rssi_threshold;
 }
 
+/**
+ * @brief Processes incoming CRSF frames.
+ *
+ * This function will attempt to process an incoming CRSF frame.
+ * Once the UART queue is empty, a single pending telemetry frame will be sent.
+ *
+ * @attention Invoke this as frequently as possible to avoid missing frames.
+ *
+ * @related crsf_set_on_rc_channels
+ * @related crsf_set_on_link_statistics
+ * @related crsf_set_on_failsafe
+ */
 void crsf_process_frames()
 {
   // check if there is data available to read
@@ -190,12 +245,12 @@ void crsf_process_frames()
             link_statistics_callback(&_link_statistics);
           }
           bool new_failsafe = calculate_failsafe();
-          if (new_failsafe != failsafe)
+          if (new_failsafe != _failsafe)
           {
-            failsafe = new_failsafe;
+            _failsafe = new_failsafe;
             if (failsafe_callback != NULL)
             {
-              failsafe_callback(failsafe);
+              failsafe_callback(_failsafe);
             }
           }
           break;
@@ -298,6 +353,14 @@ stream_buffer_t *crsf_telem_get_buffer()
   return &_telemBuf;
 }
 
+/**
+ * Sets the battery data in the telemetry structure.
+ *
+ * @param voltage The battery voltage in dv
+ * @param current The battery current in dA
+ * @param capacity The battery capacity in mAH
+ * @param percent The battery percentage remaining.
+ */
 void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent)
 {
   _telemetry.battery_sensor.voltage = voltage;

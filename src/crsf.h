@@ -68,6 +68,28 @@ typedef struct link_statistics_s
     uint16_t tx_power;
 } link_statistics_t;
 
+struct rc_channels_s
+{
+    uint16_t channel0 : 11;
+    uint16_t channel1 : 11;
+    uint16_t channel2 : 11;
+    uint16_t channel3 : 11;
+    uint16_t channel4 : 11;
+    uint16_t channel5 : 11;
+    uint16_t channel6 : 11;
+    uint16_t channel7 : 11;
+    uint16_t channel8 : 11;
+    uint16_t channel9 : 11;
+    uint16_t channel10 : 11;
+    uint16_t channel11 : 11;
+    uint16_t channel12 : 11;
+    uint16_t channel13 : 11;
+    uint16_t channel14 : 11;
+    uint16_t channel15 : 11;
+} __attribute__((packed));
+
+typedef struct rc_channels_s rc_channels_t;
+
 void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent);
 void crsf_set_link_quality_threshold(uint8_t threshold);
 void crsf_set_rssi_threshold(uint8_t threshold);
