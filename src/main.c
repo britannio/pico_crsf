@@ -13,11 +13,11 @@ void on_rc_channels(const uint16_t channels[16]) {
   printf("Channel 8: %d\n", TICKS_TO_US(channels[7]));
 }
 
-void on_link_stats(const link_statistics_t *link_stats) {
-  printf("RSSI: %d\n", link_stats->rssi);
-  printf("Link Quality: %d\n", link_stats->link_quality);
-  printf("SNR: %d\n", link_stats->snr);
-  printf("TX Power: %d\n", link_stats->tx_power);
+void on_link_stats(const link_statistics_t link_stats) {
+  printf("RSSI: %d\n", link_stats.rssi);
+  printf("Link Quality: %d\n", link_stats.link_quality);
+  printf("SNR: %d\n", link_stats.snr);
+  printf("TX Power: %d\n", link_stats.tx_power);
 }
 
 void on_failsafe(const bool failsafe) {

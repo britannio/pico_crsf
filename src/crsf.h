@@ -92,12 +92,20 @@ typedef struct rc_channels_s rc_channels_t;
 
 #define TICKS_TO_US(x) ((x - 992) * 5 / 8 + 1500)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent);
 void crsf_set_link_quality_threshold(uint8_t threshold);
 void crsf_set_rssi_threshold(uint8_t threshold);
 void crsf_set_on_rc_channels(void (*callback)(const uint16_t channels[16]));
-void crsf_set_on_link_statistics(void (*callback)(const link_statistics_t *link_stats));
+void crsf_set_on_link_statistics(void (*callback)(const link_statistics_t link_stats));
 void crsf_set_on_failsafe(void (*callback)(const bool failsafe));
 void crsf_begin(uart_inst_t *uart, uint8_t rx, uint8_t tx);
 void crsf_end();
 void crsf_process_frames();
+
+#ifdef __cplusplus
+}
+#endif

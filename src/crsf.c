@@ -31,7 +31,7 @@ uint8_t link_quality_threshold = 70;
 uint8_t rssi_threshold = 105;
 
 void (*rc_channels_callback)(const uint16_t channels[]);
-void (*link_statistics_callback)(const link_statistics_t *link_stats);
+void (*link_statistics_callback)(const link_statistics_t link_stats);
 void (*failsafe_callback)(const bool failsafe);
 
 uint8_t _telemBufData[64];
@@ -68,7 +68,7 @@ void crsf_set_on_rc_channels(void (*callback)(const uint16_t channels[16]))
  *
  * @param callback A pointer to the callback function.
  */
-void crsf_set_on_link_statistics(void (*callback)(const link_statistics_t *link_stats))
+void crsf_set_on_link_statistics(void (*callback)(const link_statistics_t link_stats))
 {
   link_statistics_callback = callback;
 }
@@ -242,7 +242,7 @@ void crsf_process_frames()
           _process_link_statistics();
           if (link_statistics_callback != NULL)
           {
-            link_statistics_callback(&_link_statistics);
+            link_statistics_callback(_link_statistics);
           }
           bool new_failsafe = calculate_failsafe();
           if (new_failsafe != _failsafe)
