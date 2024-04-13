@@ -1,20 +1,9 @@
 {
-  "cmake.configureOnOpen": false,
-  "cmake.statusbar.advanced": {
-    "debug" : {
-      "visibility": "hidden"
-              },
-    "launch" : {
-      "visibility": "hidden"
-               },
-    "build" : {
-      "visibility": "hidden"
-               },
-    "buildTarget" : {
-      "visibility": "hidden"
-               },
-    },
     "files.associations": {
-      "stdio.h": "c"
-    },
+        "crsf.h": "c",
+        "stdint.h": "c",
+        "crsf_stream_buffer.h": "c",
+        "crsf_telemetry.h": "c",
+        "crsf_frames.h": "c"
+    }
 }
