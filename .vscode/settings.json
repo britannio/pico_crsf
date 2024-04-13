@@ -1,9 +1,5 @@
 {
     "files.associations": {
-        "crsf.h": "c",
-        "stdint.h": "c",
-        "crsf_stream_buffer.h": "c",
-        "crsf_telemetry.h": "c",
-        "crsf_frames.h": "c"
+        "crsf.h": "c"
     }
 }

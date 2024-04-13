@@ -10,6 +10,10 @@ void main() {
   str.writeln();
   str.writeln();
 
+  Payload.toEnum(str);
+  str.writeln();
+  str.writeln();
+
   for (var payload in Payload.values) {
     payload.toCBuffer(str);
     str.writeln();
@@ -167,13 +171,13 @@ enum Payload {
     str.writeln();
     final payloadBytes = fields.fold(
       0,
-      (int prev, field) => prev + field.type.sizeInBytes,
+      (int prev, field) => prev + field.writeType.sizeInBytes,
     );
     // Type + Payload + CRC
     final frameLength = 1 + payloadBytes + 1;
     _write_to_buffer(str, CType.uint8, "$frameLength");
     str.write("\t// Frame length\n");
-    _write_to_buffer(str, CType.uint8, frameType.hex);
+    _write_to_buffer(str, CType.uint8, frameTypeEnumName);
     str.write("\t// Frame type\n");
     for (var field in fields) {
       _write_to_buffer(
@@ -201,5 +205,24 @@ enum Payload {
       buffer.writeln();
     }
     buffer.write("} telemetry_t;");
+  }
+
+  static void toEnum(StringBuffer buffer) {
+    buffer.write("typedef enum frame_type_e");
+    buffer.writeln();
+    buffer.write("{");
+    buffer.writeln();
+    for (var payload in Payload.values) {
+      buffer.write(
+        "\t${payload.frameTypeEnumName} = ${payload.frameType.hex},",
+      );
+      buffer.writeln();
+    }
+    buffer.writeln();
+    buffer.write("} frame_type_t;");
+  }
+
+  String get frameTypeEnumName {
+    return "CRSF_FRAMETYPE_${name.toUpperCase()}";
   }
 }

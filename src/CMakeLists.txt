@@ -1,9 +1,6 @@
 add_executable(pico_crsf
     main.c
     crsf.c
-    crsf_telemetry.c
-    crsf_stream_buffer.c
-    crsf_crc.c
 )
 
 # Add dependencies

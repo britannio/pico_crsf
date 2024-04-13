@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "crsf.h"
-#include "crsf_telemetry.h"
 
 void on_rc_channels(const uint16_t channels[16]) {
   printf("Channel 1: %d\n", channels[0]);
