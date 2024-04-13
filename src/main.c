@@ -3,14 +3,14 @@
 #include "crsf.h"
 
 void on_rc_channels(const uint16_t channels[16]) {
-  printf("Channel 1: %d\n", channels[0]);
-  printf("Channel 2: %d\n", channels[1]);
-  printf("Channel 3: %d\n", channels[2]);
-  printf("Channel 4: %d\n", channels[3]);
-  printf("Channel 5: %d\n", channels[4]);
-  printf("Channel 6: %d\n", channels[5]);
-  printf("Channel 7: %d\n", channels[6]);
-  printf("Channel 8: %d\n", channels[7]);
+  printf("Channel 1: %d\n", TICKS_TO_US(channels[0]));
+  printf("Channel 2: %d\n", TICKS_TO_US(channels[1]));
+  printf("Channel 3: %d\n", TICKS_TO_US(channels[2]));
+  printf("Channel 4: %d\n", TICKS_TO_US(channels[3]));
+  printf("Channel 5: %d\n", TICKS_TO_US(channels[4]));
+  printf("Channel 6: %d\n", TICKS_TO_US(channels[5]));
+  printf("Channel 7: %d\n", TICKS_TO_US(channels[6]));
+  printf("Channel 8: %d\n", TICKS_TO_US(channels[7]));
 }
 
 void on_link_stats(const link_statistics_t *link_stats) {

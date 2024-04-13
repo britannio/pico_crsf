@@ -90,6 +90,8 @@ struct rc_channels_s
 
 typedef struct rc_channels_s rc_channels_t;
 
+#define TICKS_TO_US(x) ((x - 992) * 5 / 8 + 1500)
+
 void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent);
 void crsf_set_link_quality_threshold(uint8_t threshold);
 void crsf_set_rssi_threshold(uint8_t threshold);
