@@ -1,3 +1,17 @@
+/**
+ * @file crsf.h
+ * @author Britannio Jarrett
+ * @brief 
+ * @version 0.1
+ * @date 2024-04-13
+ * 
+ * @copyright Copyright (c) Britannio Jarrett 2024
+ * 
+ * @section LICENSE
+ * Licensed under the MIT License.
+ * See https://github.com/britannio/pico_crsf/blob/main/LICENSE for more information.
+ *
+ */
 #pragma once
 #include <stdint.h>
 #include "pico/stdlib.h"
