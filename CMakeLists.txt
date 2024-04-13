@@ -9,5 +9,4 @@ project(pico-crsf)
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# There is another CMakeLists.txt in the src directory
-add_subdirectory(src)
+add_subdirectory(example)

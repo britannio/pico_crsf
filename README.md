@@ -6,6 +6,10 @@ A CRSF library for the Raspberry Pi Pico.
 
 Connect a receiver to UART0/UART1 pins on your Raspberry Pi Pico.
 
+Add `crsf.c` and `crsf.h` to your project.
+
+Use as follows:
+
 ```c
 #include <stdio.h>
 #include "pico/stdlib.h"
