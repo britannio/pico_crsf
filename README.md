@@ -43,6 +43,12 @@ https://github.com/crsf-wg/crsf/wiki/Message-Format
 Message format:
 `[sync] [len] [type] [payload] [crc8]`
 
+Frames are defined via the `Payload` enum in `gen_frames.dart`.
+
+Running `dart gen_frames.dart` from a terminal (see https://dart.dev/get-dart)
+will print the generated C structs and code to convert these structs into
+CRSF frames.
+
 
 ## Acknowledgements
 
