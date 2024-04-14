@@ -29,14 +29,14 @@ extension on int {
 }
 
 enum CType {
-  uint8("uint8_t", "sb_write_ui8", 8),
-  uint16("uint16_t", "sb_write_ui16", 16),
-  uint24("uint24_t", "sb_write_ui24", 24),
-  uint32("uint32_t", "sb_write_ui32", 32),
-  int8("int8_t", "sb_write_i8", 8),
-  int16("int16_t", "sb_write_i16", 16),
-  int32("int32_t", "sb_write_i32", 32),
-  uint11LE("unsigned", "sb_write_ui11LE", 11, packed: true);
+  uint8("uint8_t", "buf_write_ui8", 8),
+  uint16("uint16_t", "buf_write_ui16", 16),
+  uint24("uint24_t", "buf_write_ui24", 24),
+  uint32("uint32_t", "buf_write_ui32", 32),
+  int8("int8_t", "buf_write_i8", 8),
+  int16("int16_t", "buf_write_i16", 16),
+  int32("int32_t", "buf_write_i32", 32),
+  uint11LE("unsigned", "buf_write_ui11LE", 11, packed: true);
 
   const CType(this.str, this.writeStr, this.bits, {this.packed = false});
 
@@ -129,8 +129,6 @@ enum Payload {
     if (packed) {
       buffer.write("__attribute__((packed)) ");
     }
-    buffer.write("crsf_${this.name}_s");
-    buffer.writeln();
     buffer.write("{");
     buffer.writeln();
     for (var field in fields) {
@@ -181,7 +179,7 @@ enum Payload {
 
   void _write_to_buffer(StringBuffer str, CType type, String arg) {
     String writeFunc = type.writeStr;
-    str.write("\t${writeFunc}(&_telemBuf, $arg);");
+    str.write("\t${writeFunc}(&_telem_buf, $arg);");
   }
 
   static void toTelemetryStruct(StringBuffer buffer) {
@@ -197,7 +195,7 @@ enum Payload {
   }
 
   static void toEnum(StringBuffer buffer) {
-    buffer.write("typedef enum frame_type_e");
+    buffer.write("typedef enum");
     buffer.writeln();
     buffer.write("{");
     buffer.writeln();

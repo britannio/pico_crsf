@@ -18,60 +18,57 @@
 
 // BEGIN gen_frames.dart
 // The values are CRSF channel values (0-1984). CRSF 172 represents 988us, CRSF 992 represents 1500us, and CRSF 1811 represents 2012us.
-typedef struct __attribute__((packed)) crsf_rc_channels_packed_s
-{
-    unsigned channel0 : 11;
-    unsigned channel1 : 11;
-    unsigned channel2 : 11;
-    unsigned channel3 : 11;
-    unsigned channel4 : 11;
-    unsigned channel5 : 11;
-    unsigned channel6 : 11;
-    unsigned channel7 : 11;
-    unsigned channel8 : 11;
-    unsigned channel9 : 11;
-    unsigned channel10 : 11;
-    unsigned channel11 : 11;
-    unsigned channel12 : 11;
-    unsigned channel13 : 11;
-    unsigned channel14 : 11;
-    unsigned channel15 : 11;
+typedef struct __attribute__((packed)) {
+	unsigned channel0 : 11;
+	unsigned channel1 : 11;
+	unsigned channel2 : 11;
+	unsigned channel3 : 11;
+	unsigned channel4 : 11;
+	unsigned channel5 : 11;
+	unsigned channel6 : 11;
+	unsigned channel7 : 11;
+	unsigned channel8 : 11;
+	unsigned channel9 : 11;
+	unsigned channel10 : 11;
+	unsigned channel11 : 11;
+	unsigned channel12 : 11;
+	unsigned channel13 : 11;
+	unsigned channel14 : 11;
+	unsigned channel15 : 11;
 } crsf_payload_rc_channels_packed_t;
 
-typedef struct crsf_battery_sensor_s
-{
-    // voltage in dV (Big Endian)
-    uint16_t voltage;
-    // current in dA (Big Endian)
-    uint16_t current;
-    // used capacity in mAh
-    uint32_t capacity;
-    // estimated battery remaining in percent (%)
-    uint8_t percent;
+typedef struct {
+	// voltage in dV (Big Endian)
+	uint16_t voltage;
+	// current in dA (Big Endian)
+	uint16_t current;
+	// used capacity in mAh
+	uint32_t capacity;
+	// estimated battery remaining in percent (%)
+	uint8_t percent;
 } crsf_payload_battery_sensor_t;
 
-typedef struct crsf_link_statistics_s
-{
-    // Uplink RSSI Ant. 1 ( dBm * -1 )
-    uint8_t uplink_rssi_ant_1;
-    // Uplink RSSI Ant. 2 ( dBm * -1 )
-    uint8_t uplink_rssi_ant_2;
-    // Uplink Package success rate / Link quality ( % )
-    uint8_t uplink_package_success_rate;
-    // Uplink SNR ( dB, or dB*4 for TBS I believe )
-    int8_t uplink_snr;
-    // Diversity active antenna ( enum ant. 1 = 0, ant. 2 = 1 )
-    uint8_t diversity_active_antenna;
-    // RF Mode ( 500Hz, 250Hz etc, varies based on ELRS Band or TBS )
-    uint8_t rf_mode;
-    // Uplink TX Power ( enum 0mW = 0, 10mW, 25 mW, 100 mW, 500 mW, 1000 mW, 2000mW, 50mW )
-    uint8_t uplink_tx_power;
-    // Downlink RSSI ( dBm * -1 )
-    uint8_t downlink_rssi;
-    // Downlink package success rate / Link quality ( % )
-    uint8_t downlink_package_success_rate;
-    // Downlink SNR ( dB )
-    int8_t downlink_snr;
+typedef struct {
+	// Uplink RSSI Ant. 1 ( dBm * -1 )
+	uint8_t uplink_rssi_ant_1;
+	// Uplink RSSI Ant. 2 ( dBm * -1 )
+	uint8_t uplink_rssi_ant_2;
+	// Uplink Package success rate / Link quality ( % )
+	uint8_t uplink_package_success_rate;
+	// Uplink SNR ( dB, or dB*4 for TBS I believe )
+	int8_t uplink_snr;
+	// Diversity active antenna ( enum ant. 1 = 0, ant. 2 = 1 )
+	uint8_t diversity_active_antenna;
+	// RF Mode ( 500Hz, 250Hz etc, varies based on ELRS Band or TBS )
+	uint8_t rf_mode;
+	// Uplink TX Power ( enum 0mW = 0, 10mW, 25 mW, 100 mW, 500 mW, 1000 mW, 2000mW, 50mW )
+	uint8_t uplink_tx_power;
+	// Downlink RSSI ( dBm * -1 )
+	uint8_t downlink_rssi;
+	// Downlink package success rate / Link quality ( % )
+	uint8_t downlink_package_success_rate;
+	// Downlink SNR ( dB )
+	int8_t downlink_snr;
 } crsf_payload_link_statistics_t;
 
 typedef struct telemetry_s
@@ -81,7 +78,7 @@ typedef struct telemetry_s
 	crsf_payload_link_statistics_t link_statistics;
 } telemetry_t;
 
-typedef enum frame_type_e
+typedef enum
 {
 	CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
 	CRSF_FRAMETYPE_BATTERY_SENSOR = 0x08,
@@ -97,7 +94,7 @@ typedef struct
     size_t offset;
 } buffer_t;
 
-typedef struct link_statistics_s
+typedef struct
 {
     uint8_t rssi;
     uint8_t link_quality;
