@@ -21,6 +21,13 @@
 #define BAUD_RATE 420000
 #define CRSF_MAX_CHANNELS 16
 #define CRSF_MAX_FRAME_SIZE 64
+#define CRSF_DEBUG 0
+#if CRSF_DEBUG
+    #include <stdio.h>
+    #define DEBUG_WARN(...) fprintf(stderr, __VA_ARGS__)
+#else
+    #define DEBUG_WARN(...)
+#endif
 
 uint8_t crsf_crc8(const uint8_t *ptr, uint8_t len);
 void sb_reset(stream_buffer_t *sbuf);
@@ -32,7 +39,6 @@ void sb_write_ui24(stream_buffer_t *sbuf, uint32_t data);
 void sb_write_i24(stream_buffer_t *sbuf, int32_t data);
 void sb_write_ui32(stream_buffer_t *sbuf, uint32_t data);
 void sb_write_i32(stream_buffer_t *sbuf, int32_t data);
-stream_buffer_t *crsf_telem_get_buffer();
 bool crsf_telem_update();
 
 uart_inst_t *_uart;
@@ -218,6 +224,8 @@ void crsf_process_frames()
   {
     // read the data
     uint8_t currentByte = uart_getc(_uart);
+    // Frame format:
+    // [sync] [len] [type] [payload] [crc8]
     if (frameIndex == 0)
     {
       // Should be the sync byte (0xC8)
@@ -225,6 +233,7 @@ void crsf_process_frames()
       // 0xC8, this has been incorrect since the first CRSF implementation."
       if (currentByte != 0xC8 && currentByte != 0xEE)
       {
+        DEBUG_WARN("Invalid sync byte: %04x", currentByte);
         continue;
       }
       _incoming_frame[frameIndex++] = currentByte;
@@ -239,6 +248,7 @@ void crsf_process_frames()
       {
         // Invalid frame length
         frameIndex = 0;
+        DEBUG_WARN("Frame length out of range: %d", frameLength);
         continue;
       }
     }
@@ -276,8 +286,13 @@ void crsf_process_frames()
           }
           break;
         default:
+          DEBUG_WARN("Unknown frame type: %02x", frameType);
           break;
         }
+      }
+      else
+      {
+        DEBUG_WARN("CRC check failed.");
       }
       // Reset the frame index
       frameIndex = 0;
@@ -291,12 +306,12 @@ void crsf_process_frames()
   // Send telemetry
   if (crsf_telem_update())
   {
-    stream_buffer_t *telemBuf = crsf_telem_get_buffer();
-    if (telemBuf)
+    DEBUG_WARN("Sending telemetry frame");
+    if (_telemBuf)
     {
-      for (size_t i = 0; i < telemBuf->offset; i++)
+      for (size_t i = 0; i < _telemBuf->offset; i++)
       {
-        uart_putc(_uart, telemBuf->buffer[i]);
+        uart_putc(_uart, _telemBuf->buffer[i]);
       }
     }
   }
@@ -358,13 +373,6 @@ bool crsf_telem_update()
   }
 
   return updated;
-}
-
-stream_buffer_t *crsf_telem_get_buffer()
-{
-  if (_telemBuf.offset == 0)
-    return NULL;
-  return &_telemBuf;
 }
 
 /**
