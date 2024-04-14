@@ -29,67 +29,23 @@ extension on int {
 }
 
 enum CType {
-  uint8,
-  uint16,
-  uint24,
-  uint32,
-  int8,
-  int16,
-  int32;
+  uint8("uint8_t", "sb_write_ui8", 8),
+  uint16("uint16_t", "sb_write_ui16", 16),
+  uint24("uint24_t", "sb_write_ui24", 24),
+  uint32("uint32_t", "sb_write_ui32", 32),
+  int8("int8_t", "sb_write_i8", 8),
+  int16("int16_t", "sb_write_i16", 16),
+  int32("int32_t", "sb_write_i32", 32),
+  uint11LE("unsigned", "sb_write_ui11LE", 11, packed: true);
 
-  String toString() {
-    switch (this) {
-      case CType.uint8:
-        return "uint8_t";
-      case CType.uint16:
-        return "uint16_t";
-      case CType.uint24:
-        return "uint24_t";
-      case CType.uint32:
-        return "uint32_t";
-      case CType.int8:
-        return "int8_t";
-      case CType.int16:
-        return "int16_t";
-      case CType.int32:
-        return "int32_t";
-    }
-  }
+  const CType(this.str, this.writeStr, this.bits, {this.packed = false});
 
-  String toWriteString() {
-    switch (this) {
-      case CType.uint8:
-        return "sb_write_ui8";
-      case CType.uint16:
-        return "sb_write_ui16";
-      case CType.uint24:
-        return "sb_write_ui24";
-      case CType.uint32:
-        return "sb_write_ui32";
-      case CType.int8:
-        return "sb_write_i8";
-      case CType.int16:
-        return "sb_write_i16";
-      case CType.int32:
-        return "sb_write_i32";
-    }
-  }
+  final String str;
+  final String writeStr;
+  final int bits;
+  final bool packed;
 
-  int get sizeInBytes {
-    switch (this) {
-      case CType.uint8:
-      case CType.int8:
-        return 1;
-      case CType.uint16:
-      case CType.int16:
-        return 2;
-      case CType.uint24:
-        return 3;
-      case CType.uint32:
-      case CType.int32:
-        return 4;
-    }
-  }
+  String toString() => str;
 }
 
 class PayloadField {
@@ -103,6 +59,27 @@ class PayloadField {
 }
 
 enum Payload {
+  rc_channels_packed(
+    0x16,
+    [
+      PayloadField(CType.uint11LE, "channel0", ""),
+      PayloadField(CType.uint11LE, "channel1", ""),
+      PayloadField(CType.uint11LE, "channel2", ""),
+      PayloadField(CType.uint11LE, "channel3", ""),
+      PayloadField(CType.uint11LE, "channel4", ""),
+      PayloadField(CType.uint11LE, "channel5", ""),
+      PayloadField(CType.uint11LE, "channel6", ""),
+      PayloadField(CType.uint11LE, "channel7", ""),
+      PayloadField(CType.uint11LE, "channel8", ""),
+      PayloadField(CType.uint11LE, "channel9", ""),
+      PayloadField(CType.uint11LE, "channel10", ""),
+      PayloadField(CType.uint11LE, "channel11", ""),
+      PayloadField(CType.uint11LE, "channel12", ""),
+      PayloadField(CType.uint11LE, "channel13", ""),
+      PayloadField(CType.uint11LE, "channel14", ""),
+      PayloadField(CType.uint11LE, "channel15", ""),
+    ],
+  ),
   battery_sensor(0x08, [
     PayloadField(CType.uint16, "voltage", "voltage in dV (Big Endian)"),
     PayloadField(CType.uint16, "current", "current in dA (Big Endian)"),
@@ -147,17 +124,28 @@ enum Payload {
   }
 
   void toStruct(StringBuffer buffer) {
-    buffer.write("typedef struct crsf_${this.name}_s");
+    final packed = fields.any((field) => field.type.packed);
+    buffer.write("typedef struct ");
+    if (packed) {
+      buffer.write("__attribute__((packed)) ");
+    }
+    buffer.write("crsf_${this.name}_s");
     buffer.writeln();
     buffer.write("{");
     buffer.writeln();
     for (var field in fields) {
-      buffer.write("\t// ${field.description}");
-      buffer.writeln();
+      final hasComment = field.description.isNotEmpty;
+      if (hasComment) {
+        buffer.write("\t// ${field.description}");
+        buffer.writeln();
+      }
       buffer.write("\t");
       buffer.write(field.type);
       buffer.write(" ");
       buffer.write(field.name);
+      if (field.type.packed) {
+        buffer.write(" : ${field.type.bits}");
+      }
       buffer.write(";");
       buffer.writeln();
     }
@@ -169,10 +157,11 @@ enum Payload {
     str.writeln();
     str.write("{");
     str.writeln();
-    final payloadBytes = fields.fold(
+    final payloadBits = fields.fold(
       0,
-      (int prev, field) => prev + field.writeType.sizeInBytes,
+      (int prev, field) => prev + field.writeType.bits,
     );
+    final payloadBytes = payloadBits ~/ 8;
     // Type + Payload + CRC
     final frameLength = 1 + payloadBytes + 1;
     _write_to_buffer(str, CType.uint8, "$frameLength");
@@ -191,7 +180,7 @@ enum Payload {
   }
 
   void _write_to_buffer(StringBuffer str, CType type, String arg) {
-    String writeFunc = type.toWriteString();
+    String writeFunc = type.writeStr;
     str.write("\t${writeFunc}(&_telemBuf, $arg);");
   }
 

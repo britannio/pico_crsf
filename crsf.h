@@ -17,6 +17,26 @@
 #include "pico/stdlib.h"
 
 // BEGIN gen_frames.dart
+typedef struct __attribute__((packed)) crsf_rc_channels_packed_s
+{
+    unsigned channel0 : 11;
+    unsigned channel1 : 11;
+    unsigned channel2 : 11;
+    unsigned channel3 : 11;
+    unsigned channel4 : 11;
+    unsigned channel5 : 11;
+    unsigned channel6 : 11;
+    unsigned channel7 : 11;
+    unsigned channel8 : 11;
+    unsigned channel9 : 11;
+    unsigned channel10 : 11;
+    unsigned channel11 : 11;
+    unsigned channel12 : 11;
+    unsigned channel13 : 11;
+    unsigned channel14 : 11;
+    unsigned channel15 : 11;
+} crsf_payload_rc_channels_packed_t;
+
 typedef struct crsf_battery_sensor_s
 {
     // voltage in dV (Big Endian)
@@ -55,14 +75,16 @@ typedef struct crsf_link_statistics_s
 
 typedef struct telemetry_s
 {
-    crsf_payload_battery_sensor_t battery_sensor;
-    crsf_payload_link_statistics_t link_statistics;
+	crsf_payload_rc_channels_packed_t rc_channels_packed;
+	crsf_payload_battery_sensor_t battery_sensor;
+	crsf_payload_link_statistics_t link_statistics;
 } telemetry_t;
 
 typedef enum frame_type_e
 {
-    CRSF_FRAMETYPE_BATTERY_SENSOR = 0x08,
-    CRSF_FRAMETYPE_LINK_STATISTICS = 0x14,
+	CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
+	CRSF_FRAMETYPE_BATTERY_SENSOR = 0x08,
+	CRSF_FRAMETYPE_LINK_STATISTICS = 0x14,
 
 } frame_type_t;
 // END gen_frames.dart
@@ -81,26 +103,6 @@ typedef struct link_statistics_s
     int8_t snr;
     uint16_t tx_power;
 } link_statistics_t;
-
-typedef struct __attribute__((packed)) rc_channels_s
-{
-    uint16_t channel0 : 11;
-    uint16_t channel1 : 11;
-    uint16_t channel2 : 11;
-    uint16_t channel3 : 11;
-    uint16_t channel4 : 11;
-    uint16_t channel5 : 11;
-    uint16_t channel6 : 11;
-    uint16_t channel7 : 11;
-    uint16_t channel8 : 11;
-    uint16_t channel9 : 11;
-    uint16_t channel10 : 11;
-    uint16_t channel11 : 11;
-    uint16_t channel12 : 11;
-    uint16_t channel13 : 11;
-    uint16_t channel14 : 11;
-    uint16_t channel15 : 11;
-} rc_channels_t;
 
 #define TICKS_TO_US(x) ((x - 992) * 5 / 8 + 1500)
 

@@ -1,12 +1,12 @@
 /**
  * @file crsf.c
  * @author Britannio Jarrett
- * @brief 
+ * @brief
  * @version 0.1
  * @date 2024-04-13
- * 
+ *
  * @copyright Copyright (c) Britannio Jarrett 2024
- * 
+ *
  * @section LICENSE
  * Licensed under the MIT License.
  * See https://github.com/britannio/pico_crsf/blob/main/LICENSE for more information.
@@ -96,7 +96,6 @@ void crsf_set_on_failsafe(void (*callback)(const bool failsafe))
   failsafe_callback = callback;
 }
 
-
 /**
  * Sets the link quality threshold for CRSF communication.
  *
@@ -139,7 +138,7 @@ void crsf_begin(uart_inst_t *uart, uint8_t tx, uint8_t rx)
 
 /**
  * @brief Ends the CRSF communication.
- * 
+ *
  * This function deinitializes the UART used for CRSF communication.
  */
 void crsf_end()
@@ -149,23 +148,23 @@ void crsf_end()
 
 void _process_rc_channels()
 {
-  const rc_channels_t *rc_channels_payload = (const rc_channels_t *)&_incoming_frame[3];
-  _rc_channels[0] = rc_channels_payload->channel0;
-  _rc_channels[1] = rc_channels_payload->channel1;
-  _rc_channels[2] = rc_channels_payload->channel2;
-  _rc_channels[3] = rc_channels_payload->channel3;
-  _rc_channels[4] = rc_channels_payload->channel4;
-  _rc_channels[5] = rc_channels_payload->channel5;
-  _rc_channels[6] = rc_channels_payload->channel6;
-  _rc_channels[7] = rc_channels_payload->channel7;
-  _rc_channels[8] = rc_channels_payload->channel8;
-  _rc_channels[9] = rc_channels_payload->channel9;
-  _rc_channels[10] = rc_channels_payload->channel10;
-  _rc_channels[11] = rc_channels_payload->channel11;
-  _rc_channels[12] = rc_channels_payload->channel12;
-  _rc_channels[13] = rc_channels_payload->channel13;
-  _rc_channels[14] = rc_channels_payload->channel14;
-  _rc_channels[15] = rc_channels_payload->channel15;
+  const crsf_payload_rc_channels_packed_t *payload = (const crsf_payload_rc_channels_packed_t *)&_incoming_frame[3];
+  _rc_channels[0] = payload->channel0;
+  _rc_channels[1] = payload->channel1;
+  _rc_channels[2] = payload->channel2;
+  _rc_channels[3] = payload->channel3;
+  _rc_channels[4] = payload->channel4;
+  _rc_channels[5] = payload->channel5;
+  _rc_channels[6] = payload->channel6;
+  _rc_channels[7] = payload->channel7;
+  _rc_channels[8] = payload->channel8;
+  _rc_channels[9] = payload->channel9;
+  _rc_channels[10] = payload->channel10;
+  _rc_channels[11] = payload->channel11;
+  _rc_channels[12] = payload->channel12;
+  _rc_channels[13] = payload->channel13;
+  _rc_channels[14] = payload->channel14;
+  _rc_channels[15] = payload->channel15;
 }
 
 const uint16_t tx_power_table[9] = {
@@ -222,7 +221,9 @@ void crsf_process_frames()
     if (frameIndex == 0)
     {
       // Should be the sync byte (0xC8)
-      if (currentByte != 0xC8)
+      // "OpenTX/EdgeTX sends the channels packet starting with 0xEE instead of
+      // 0xC8, this has been incorrect since the first CRSF implementation."
+      if (currentByte != 0xC8 && currentByte != 0xEE)
       {
         continue;
       }
@@ -251,7 +252,7 @@ void crsf_process_frames()
         const uint8_t frameType = _incoming_frame[2];
         switch (frameType)
         {
-        case 0x14:
+        case CRSF_FRAMETYPE_LINK_STATISTICS:
           _process_link_statistics();
           if (link_statistics_callback != NULL)
           {
@@ -267,7 +268,7 @@ void crsf_process_frames()
             }
           }
           break;
-        case 0x16:
+        case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
           _process_rc_channels();
           if (rc_channels_callback != NULL)
           {
