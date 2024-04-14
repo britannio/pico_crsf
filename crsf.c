@@ -20,12 +20,10 @@
 
 #define BAUD_RATE 420000
 #define CRSF_MAX_CHANNELS 16
+#define CRSF_MAX_FRAME_SIZE 64
 
 uint8_t crsf_crc8(const uint8_t *ptr, uint8_t len);
-stream_buffer_t *sb_init(size_t capacity);
 void sb_reset(stream_buffer_t *sbuf);
-void sb_free(stream_buffer_t *sbuf);
-
 void sb_write_ui8(stream_buffer_t *sbuf, uint8_t data);
 void sb_write_i8(stream_buffer_t *sbuf, int8_t data);
 void sb_write_ui16(stream_buffer_t *sbuf, uint16_t data);
@@ -38,21 +36,21 @@ stream_buffer_t *crsf_telem_get_buffer();
 bool crsf_telem_update();
 
 uart_inst_t *_uart;
-uint8_t _incoming_frame[64];
+uint8_t _incoming_frame[CRSF_MAX_FRAME_SIZE];
 uint16_t _rc_channels[CRSF_MAX_CHANNELS];
 link_statistics_t _link_statistics;
 bool _failsafe = false;
-uint8_t link_quality_threshold = 70;
-uint8_t rssi_threshold = 105;
+uint8_t _link_quality_threshold = 70;
+uint8_t _rssi_threshold = 105;
 
 void (*rc_channels_callback)(const uint16_t channels[]);
 void (*link_statistics_callback)(const link_statistics_t link_stats);
 void (*failsafe_callback)(const bool failsafe);
 
-uint8_t _telemBufData[64];
+uint8_t _telemBufData[CRSF_MAX_FRAME_SIZE];
 stream_buffer_t _telemBuf = {
     .buffer = _telemBufData,
-    .capacity = 64,
+    .capacity = CRSF_MAX_FRAME_SIZE,
     .offset = 0,
 };
 telemetry_t _telemetry;
@@ -109,7 +107,7 @@ void crsf_set_on_failsafe(void (*callback)(const bool failsafe))
  */
 void crsf_set_link_quality_threshold(uint8_t threshold)
 {
-  link_quality_threshold = threshold;
+  _link_quality_threshold = threshold;
 }
 
 /**
@@ -119,24 +117,24 @@ void crsf_set_link_quality_threshold(uint8_t threshold)
  */
 void crsf_set_rssi_threshold(uint8_t threshold)
 {
-  rssi_threshold = threshold;
+  _rssi_threshold = threshold;
 }
 
 /**
  * Initializes the CRSF communication by setting up the UART and configuring the RX and TX pins.
  *
  * @param uart The UART instance to be used for CRSF communication.
- * @param rx The RX pin number.
  * @param tx The TX pin number.
+ * @param rx The RX pin number.
  */
-void crsf_begin(uart_inst_t *uart, uint8_t rx, uint8_t tx)
+void crsf_begin(uart_inst_t *uart, uint8_t tx, uint8_t rx)
 {
   // TODO support PIO UART
   _uart = uart;
   // set up the UART
   uart_init(_uart, BAUD_RATE);
-  gpio_set_function(rx, GPIO_FUNC_UART);
   gpio_set_function(tx, GPIO_FUNC_UART);
+  gpio_set_function(rx, GPIO_FUNC_UART);
 }
 
 /**
@@ -196,7 +194,7 @@ void _process_link_statistics()
 
 bool calculate_failsafe()
 {
-  return _link_statistics.link_quality <= link_quality_threshold || _link_statistics.rssi >= rssi_threshold;
+  return _link_statistics.link_quality <= _link_quality_threshold || _link_statistics.rssi >= _rssi_threshold;
 }
 
 /**

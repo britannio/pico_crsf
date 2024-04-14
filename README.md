@@ -47,3 +47,4 @@ Message format:
 ## Acknowledgements
 
 * The simplicity of this repo was motivating: https://github.com/stepinside/Arduino-CRSF
+* https://github.com/ZZ-Cat/CRSFforArduino is a promising library. Sadly some of my contributions [were not welcomed](https://github.com/ZZ-Cat/CRSFforArduino/issues/109#issuecomment-2053772516).
