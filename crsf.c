@@ -23,10 +23,12 @@
 #define CRSF_MAX_FRAME_SIZE 64
 #define CRSF_DEBUG 0
 #if CRSF_DEBUG
-    #include <stdio.h>
-    #define DEBUG_WARN(...) fprintf(stderr, __VA_ARGS__)
+#include <stdio.h>
+#define DEBUG_WARN(...) fprintf(stderr, __VA_ARGS__)
+#define DEBUG_INFO(...) printf(__VA_ARGS__)
 #else
-    #define DEBUG_WARN(...)
+#define DEBUG_WARN(...)
+#define DEBUG_INFO(...)
 #endif
 
 uint8_t crsf_crc8(const uint8_t *ptr, uint8_t len);
@@ -306,13 +308,10 @@ void crsf_process_frames()
   // Send telemetry
   if (crsf_telem_update())
   {
-    DEBUG_WARN("Sending telemetry frame");
-    if (_telemBuf)
+    DEBUG_INFO("Sending telemetry frame");
+    for (size_t i = 0; i < _telemBuf.offset; i++)
     {
-      for (size_t i = 0; i < _telemBuf->offset; i++)
-      {
-        uart_putc(_uart, _telemBuf->buffer[i]);
-      }
+      uart_putc(_uart, _telemBuf.buffer[i]);
     }
   }
 }
