@@ -95,7 +95,7 @@ typedef struct
     uint8_t *buffer;
     size_t capacity;
     size_t offset;
-} stream_buffer_t;
+} buffer_t;
 
 typedef struct link_statistics_s
 {

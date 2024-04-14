@@ -31,7 +31,7 @@
 #define DEBUG_INFO(...)
 #endif
 
-uart_inst_t *_uart;
+uart_inst_t *_uart = NULL;
 uint8_t _incoming_frame[CRSF_MAX_FRAME_SIZE];
 uint16_t _rc_channels[CRSF_MAX_CHANNELS];
 link_statistics_t _link_statistics;
@@ -43,9 +43,9 @@ void (*rc_channels_callback)(const uint16_t channels[]);
 void (*link_statistics_callback)(const link_statistics_t link_stats);
 void (*failsafe_callback)(const bool failsafe);
 
-uint8_t _telemBufData[CRSF_MAX_FRAME_SIZE];
-stream_buffer_t _telemBuf = {
-    .buffer = _telemBufData,
+uint8_t _telem_buf_data[CRSF_MAX_FRAME_SIZE];
+buffer_t _telem_buf = {
+    .buffer = _telem_buf_data,
     .capacity = CRSF_MAX_FRAME_SIZE,
     .offset = 0,
 };
@@ -220,133 +220,133 @@ uint8_t crsf_crc8(const uint8_t *ptr, uint8_t len)
   return crc;
 }
 
-void sb_reset(stream_buffer_t *sbuf)
+void buf_reset(buffer_t *buf)
 {
-  if (sbuf)
+  if (buf)
   {
-    sbuf->offset = 0;
+    buf->offset = 0;
   }
 }
 
 // Write an uint8_t to the buffer
-void sb_write_ui8(stream_buffer_t *sbuf, uint8_t data)
+void buf_write_ui8(buffer_t *buf, uint8_t data)
 {
-  if (sbuf && (sbuf->offset + sizeof(uint8_t) <= sbuf->capacity))
+  if (buf && (buf->offset + sizeof(uint8_t) <= buf->capacity))
   {
-    sbuf->buffer[sbuf->offset] = data;
-    sbuf->offset += sizeof(uint8_t);
+    buf->buffer[buf->offset] = data;
+    buf->offset += sizeof(uint8_t);
   }
 }
 
 // Write an int8_t to the buffer
-void sb_write_i8(stream_buffer_t *sbuf, int8_t data)
+void buf_write_i8(buffer_t *buf, int8_t data)
 {
-  if (sbuf && (sbuf->offset + sizeof(int8_t) <= sbuf->capacity))
+  if (buf && (buf->offset + sizeof(int8_t) <= buf->capacity))
   {
-    sbuf->buffer[sbuf->offset] = data;
-    sbuf->offset += sizeof(int8_t);
+    buf->buffer[buf->offset] = data;
+    buf->offset += sizeof(int8_t);
   }
 }
 
 // Write an uint16_t to the buffer
-void sb_write_ui16(stream_buffer_t *sbuf, uint16_t data)
+void buf_write_ui16(buffer_t *buf, uint16_t data)
 {
-  if (sbuf && (sbuf->offset + sizeof(uint16_t) <= sbuf->capacity))
+  if (buf && (buf->offset + sizeof(uint16_t) <= buf->capacity))
   {
-    sbuf->buffer[sbuf->offset] = (data >> 8) & 0xFF;
-    sbuf->buffer[sbuf->offset + 1] = data & 0xFF;
-    sbuf->offset += sizeof(uint16_t);
+    buf->buffer[buf->offset] = (data >> 8) & 0xFF;
+    buf->buffer[buf->offset + 1] = data & 0xFF;
+    buf->offset += sizeof(uint16_t);
   }
 }
 
 // Write an int16_t to the buffer
-void sb_write_i16(stream_buffer_t *sbuf, int16_t data)
+void buf_write_i16(buffer_t *buf, int16_t data)
 {
-  if (sbuf && (sbuf->offset + sizeof(int16_t) <= sbuf->capacity))
+  if (buf && (buf->offset + sizeof(int16_t) <= buf->capacity))
   {
-    sbuf->buffer[sbuf->offset] = (data >> 8) & 0xFF;
-    sbuf->buffer[sbuf->offset + 1] = data & 0xFF;
-    sbuf->offset += sizeof(int16_t);
+    buf->buffer[buf->offset] = (data >> 8) & 0xFF;
+    buf->buffer[buf->offset + 1] = data & 0xFF;
+    buf->offset += sizeof(int16_t);
   }
 }
 
 // Write an uint24_t to the buffer
-void sb_write_ui24(stream_buffer_t *sbuf, uint32_t data)
+void buf_write_ui24(buffer_t *buf, uint32_t data)
 {
-  if (sbuf && (sbuf->offset + 3 <= sbuf->capacity))
+  if (buf && (buf->offset + 3 <= buf->capacity))
   {
-    sbuf->buffer[sbuf->offset] = (data >> 16) & 0xFF;
-    sbuf->buffer[sbuf->offset + 1] = (data >> 8) & 0xFF;
-    sbuf->buffer[sbuf->offset + 2] = data & 0xFF;
-    sbuf->offset += 3;
+    buf->buffer[buf->offset] = (data >> 16) & 0xFF;
+    buf->buffer[buf->offset + 1] = (data >> 8) & 0xFF;
+    buf->buffer[buf->offset + 2] = data & 0xFF;
+    buf->offset += 3;
   }
 }
 
 // Write an int24_t to the buffer
-void sb_write_i24(stream_buffer_t *sbuf, int32_t data)
+void buf_write_i24(buffer_t *buf, int32_t data)
 {
-  if (sbuf && (sbuf->offset + 3 <= sbuf->capacity))
+  if (buf && (buf->offset + 3 <= buf->capacity))
   {
-    sbuf->buffer[sbuf->offset] = (data >> 16) & 0xFF;
-    sbuf->buffer[sbuf->offset + 1] = (data >> 8) & 0xFF;
-    sbuf->buffer[sbuf->offset + 2] = data & 0xFF;
-    sbuf->offset += 3;
+    buf->buffer[buf->offset] = (data >> 16) & 0xFF;
+    buf->buffer[buf->offset + 1] = (data >> 8) & 0xFF;
+    buf->buffer[buf->offset + 2] = data & 0xFF;
+    buf->offset += 3;
   }
 }
 
 // Write an uint32_t to the buffer
-void sb_write_ui32(stream_buffer_t *sbuf, uint32_t data)
+void buf_write_ui32(buffer_t *buf, uint32_t data)
 {
-  if (sbuf && (sbuf->offset + sizeof(uint32_t) <= sbuf->capacity))
+  if (buf && (buf->offset + sizeof(uint32_t) <= buf->capacity))
   {
-    sbuf->buffer[sbuf->offset] = (data >> 24) & 0xFF;
-    sbuf->buffer[sbuf->offset + 1] = (data >> 16) & 0xFF;
-    sbuf->buffer[sbuf->offset + 2] = (data >> 8) & 0xFF;
-    sbuf->buffer[sbuf->offset + 3] = data & 0xFF;
-    sbuf->offset += sizeof(uint32_t);
+    buf->buffer[buf->offset] = (data >> 24) & 0xFF;
+    buf->buffer[buf->offset + 1] = (data >> 16) & 0xFF;
+    buf->buffer[buf->offset + 2] = (data >> 8) & 0xFF;
+    buf->buffer[buf->offset + 3] = data & 0xFF;
+    buf->offset += sizeof(uint32_t);
   }
 }
 
 // Write an int32_t to the buffer
-void sb_write_i32(stream_buffer_t *sbuf, int32_t data)
+void buf_write_i32(buffer_t *buf, int32_t data)
 {
-  if (sbuf && (sbuf->offset + sizeof(int32_t) <= sbuf->capacity))
+  if (buf && (buf->offset + sizeof(int32_t) <= buf->capacity))
   {
-    sbuf->buffer[sbuf->offset] = (data >> 24) & 0xFF;
-    sbuf->buffer[sbuf->offset + 1] = (data >> 16) & 0xFF;
-    sbuf->buffer[sbuf->offset + 2] = (data >> 8) & 0xFF;
-    sbuf->buffer[sbuf->offset + 3] = data & 0xFF;
-    sbuf->offset += sizeof(int32_t);
+    buf->buffer[buf->offset] = (data >> 24) & 0xFF;
+    buf->buffer[buf->offset + 1] = (data >> 16) & 0xFF;
+    buf->buffer[buf->offset + 2] = (data >> 8) & 0xFF;
+    buf->buffer[buf->offset + 3] = data & 0xFF;
+    buf->offset += sizeof(int32_t);
   }
 }
 
 void _begin_frame()
 {
-  sb_reset(&_telemBuf);
+  buf_reset(&_telem_buf);
   // Write sync byte
-  sb_write_ui8(&_telemBuf, 0xC8);
+  buf_write_ui8(&_telem_buf, 0xC8);
 }
 
 void _end_frame()
 {
   // Skip sync byte and frame length
   const uint8_t bytesToSkip = 2;
-  const uint8_t *start = _telemBuf.buffer + bytesToSkip;
-  const uint8_t length = _telemBuf.offset - bytesToSkip;
+  const uint8_t *start = _telem_buf.buffer + bytesToSkip;
+  const uint8_t length = _telem_buf.offset - bytesToSkip;
   const uint8_t crc = crsf_crc8(start, length);
 
-  sb_write_ui8(&_telemBuf, crc);
+  buf_write_ui8(&_telem_buf, crc);
 }
 
 // BEGIN gen_frames.dart
 void _write_battery_sensor_payload()
 {
-  sb_write_ui8(&_telemBuf, 10);                            // Frame length
-  sb_write_ui8(&_telemBuf, CRSF_FRAMETYPE_BATTERY_SENSOR); // Frame type
-  sb_write_ui16(&_telemBuf, _telemetry.battery_sensor.voltage);
-  sb_write_ui16(&_telemBuf, _telemetry.battery_sensor.current);
-  sb_write_ui24(&_telemBuf, _telemetry.battery_sensor.capacity);
-  sb_write_ui8(&_telemBuf, _telemetry.battery_sensor.percent);
+  buf_write_ui8(&_telem_buf, 10);                            // Frame length
+  buf_write_ui8(&_telem_buf, CRSF_FRAMETYPE_BATTERY_SENSOR); // Frame type
+  buf_write_ui16(&_telem_buf, _telemetry.battery_sensor.voltage);
+  buf_write_ui16(&_telem_buf, _telemetry.battery_sensor.current);
+  buf_write_ui24(&_telem_buf, _telemetry.battery_sensor.capacity);
+  buf_write_ui8(&_telem_buf, _telemetry.battery_sensor.percent);
 }
 // END gen_frames.dart
 
@@ -483,9 +483,9 @@ void crsf_process_frames()
   if (crsf_telem_update())
   {
     DEBUG_INFO("Sending telemetry frame");
-    for (size_t i = 0; i < _telemBuf.offset; i++)
+    for (size_t i = 0; i < _telem_buf.offset; i++)
     {
-      uart_putc(_uart, _telemBuf.buffer[i]);
+      uart_putc(_uart, _telem_buf.buffer[i]);
     }
   }
 }
