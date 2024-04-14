@@ -17,6 +17,7 @@
 #include "pico/stdlib.h"
 
 // BEGIN gen_frames.dart
+// The values are CRSF channel values (0-1984). CRSF 172 represents 988us, CRSF 992 represents 1500us, and CRSF 1811 represents 2012us.
 typedef struct __attribute__((packed)) crsf_rc_channels_packed_s
 {
     unsigned channel0 : 11;
