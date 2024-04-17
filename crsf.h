@@ -71,7 +71,7 @@ typedef struct {
 	int8_t downlink_snr;
 } crsf_payload_link_statistics_t;
 
-typedef struct telemetry_s
+typedef struct
 {
 	crsf_payload_rc_channels_packed_t rc_channels_packed;
 	crsf_payload_battery_sensor_t battery_sensor;
