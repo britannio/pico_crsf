@@ -396,7 +396,8 @@ void crsf_process_frames()
   uint8_t frameIndex = 0;
   uint8_t frameLength = 0;
   uint8_t crcIndex = 0;
-  while (uart_is_readable(_uart))
+  // It takes 23.8095238095 µs to receive the next byte at 420000 baud
+  while (uart_is_readable_within_us(_uart, 24))
   {
     // read the data
     uint8_t currentByte = uart_getc(_uart);
