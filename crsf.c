@@ -35,7 +35,7 @@ uart_inst_t *_uart = NULL;
 uint8_t _incoming_frame[CRSF_MAX_FRAME_SIZE];
 uint16_t _rc_channels[CRSF_MAX_CHANNELS];
 link_statistics_t _link_statistics;
-bool _failsafe = false;
+bool _failsafe = true;
 uint8_t _link_quality_threshold = 70;
 uint8_t _rssi_threshold = 105;
 
