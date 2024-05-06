@@ -102,7 +102,7 @@ typedef struct
     uint16_t tx_power;
 } link_statistics_t;
 
-#define TICKS_TO_US(x) ((x - 992) * 5 / 8 + 1500)
+#define TICKS_TO_US(x) ((x - 992.0f) * 5.0f / 8.0f + 1500.0f)
 
 #ifdef __cplusplus
 extern "C"
