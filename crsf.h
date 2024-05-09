@@ -16,6 +16,11 @@
 #include <stdint.h>
 #include "pico/stdlib.h"
 
+typedef struct {
+	uint8_t buffer[60];
+	uint8_t length;
+} crsf_payload_custom_t;
+
 // BEGIN gen_frames.dart
 // The values are CRSF channel values (0-1984). CRSF 172 represents 988us, CRSF 992 represents 1500us, and CRSF 1811 represents 2012us.
 typedef struct __attribute__((packed)) {
@@ -88,11 +93,6 @@ typedef enum
 
 } frame_type_t;
 // END gen_frames.dart
-
-typedef struct {
-	uint8_t buffer[60];
-	uint8_t length;
-} crsf_payload_custom_t;
 
 typedef struct
 {
