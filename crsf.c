@@ -54,6 +54,7 @@ telemetry_t _telemetry;
 enum
 {
   CRSF_BATTERY_INDEX = 0,
+  CRSF_CUSTOM_PAYLOAD_INDEX = 1,
   // Add new frame types above
   TELEMETRY_FRAME_TYPES
 };
@@ -367,6 +368,14 @@ bool crsf_telem_update()
       case CRSF_BATTERY_INDEX:
         _write_battery_sensor_payload();
         break;
+      case CRSF_CUSTOM_PAYLOAD_INDEX:
+        buf_write_ui8(&_telem_buf, _telemetry.custom.length + 2); // Frame length
+        buf_write_ui8(&_telem_buf, CRSF_FRAMETYPE_CUSTOM_PAYLOAD); // Frame type
+        for (size_t i = 0; i < _telemetry.custom.length; i++)
+        {
+          buf_write_ui8(&_telem_buf, _telemetry.custom.buffer[i]);
+        }
+        break;
       }
       _end_frame();
       updated = true;
@@ -506,4 +515,14 @@ void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t ca
   _telemetry.battery_sensor.capacity = capacity;
   _telemetry.battery_sensor.percent = percent;
   frameHasData[CRSF_BATTERY_INDEX] = true;
+}
+
+void crsf_telem_set_custom_payload(uint8_t *data, uint8_t length)
+{
+  if (length > 60) {
+    return;
+  }
+  memcpy(_telemetry.custom.buffer, data, length);
+  _telemetry.custom.length = length;
+  frameHasData[CRSF_CUSTOM_PAYLOAD_INDEX] = true;
 }

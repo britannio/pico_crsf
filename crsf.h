@@ -76,6 +76,7 @@ typedef struct
 	crsf_payload_rc_channels_packed_t rc_channels_packed;
 	crsf_payload_battery_sensor_t battery_sensor;
 	crsf_payload_link_statistics_t link_statistics;
+	crsf_payload_custom_t custom;
 } telemetry_t;
 
 typedef enum
@@ -83,9 +84,15 @@ typedef enum
 	CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,
 	CRSF_FRAMETYPE_BATTERY_SENSOR = 0x08,
 	CRSF_FRAMETYPE_LINK_STATISTICS = 0x14,
+	CRSF_FRAMETYPE_CUSTOM_PAYLOAD = 0x7F,
 
 } frame_type_t;
 // END gen_frames.dart
+
+typedef struct {
+	uint8_t buffer[60];
+	uint8_t length;
+} crsf_payload_custom_t;
 
 typedef struct
 {
@@ -110,6 +117,7 @@ extern "C"
 #endif
 
     void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent);
+	void crsf_telem_set_custom_payload(uint8_t *data, uint8_t length);
     void crsf_set_link_quality_threshold(uint8_t threshold);
     void crsf_set_rssi_threshold(uint8_t threshold);
     void crsf_set_on_rc_channels(void (*callback)(const uint16_t channels[16]));
