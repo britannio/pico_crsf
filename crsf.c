@@ -17,6 +17,7 @@
 #include <hardware/uart.h>
 #include <hardware/gpio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define BAUD_RATE 420000
 #define CRSF_MAX_CHANNELS 16
