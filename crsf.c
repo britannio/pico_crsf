@@ -370,7 +370,7 @@ bool crsf_telem_update()
         _write_battery_sensor_payload();
         break;
       case CRSF_CUSTOM_PAYLOAD_INDEX:
-        buf_write_ui8(&_telem_buf, _telemetry.custom.length + 2); // Frame length
+        buf_write_ui8(&_telem_buf, _telemetry.custom.length + 2);  // Frame length
         buf_write_ui8(&_telem_buf, CRSF_FRAMETYPE_CUSTOM_PAYLOAD); // Frame type
         for (size_t i = 0; i < _telemetry.custom.length; i++)
         {
@@ -388,6 +388,107 @@ bool crsf_telem_update()
   return updated;
 }
 
+bool crsf_process_frame(uint8_t *frameIndex, uint8_t *frameLength, uint8_t *crcIndex, uint8_t currentByte)
+{
+  // Frame format:
+  // [sync] [len] [type] [payload] [crc8]
+  if (*frameIndex == 0)
+  {
+    // Should be the sync byte (0xC8)
+    // "OpenTX/EdgeTX sends the channels packet starting with 0xEE instead of
+    // 0xC8, this has been incorrect since the first CRSF implementation."
+    if (currentByte != 0xC8 && currentByte != 0xEE)
+    {
+      DEBUG_WARN("Invalid sync byte: %04x", currentByte);
+      return false;
+    }
+    _incoming_frame[*frameIndex++] = currentByte;
+    return true;
+  }
+  else if (*frameIndex == 1)
+  {
+    // Should be the length byte
+    _incoming_frame[*frameIndex++] = currentByte;
+    *frameLength = currentByte;
+    *crcIndex = *frameLength + 1;
+    if (*frameLength < 2 || *frameLength > 62)
+    {
+      // Invalid frame length
+      *frameIndex = 0;
+      DEBUG_WARN("Frame length out of range: %d", *frameLength);
+      return false;
+    }
+    return true;
+  }
+  else if (*frameIndex == *crcIndex)
+  {
+    // We have read the entire frame
+    // Check the CRC
+    if (crsf_crc8(_incoming_frame + 2, *frameLength - 1) == currentByte)
+    {
+      // Process the frame
+      const uint8_t frameType = _incoming_frame[2];
+      switch (frameType)
+      {
+      case CRSF_FRAMETYPE_LINK_STATISTICS:
+        _process_link_statistics();
+        if (link_statistics_callback != NULL)
+        {
+          link_statistics_callback(_link_statistics);
+        }
+        bool new_failsafe = calculate_failsafe();
+        if (new_failsafe != _failsafe)
+        {
+          _failsafe = new_failsafe;
+          if (failsafe_callback != NULL)
+          {
+            failsafe_callback(_failsafe);
+          }
+        }
+        break;
+      case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
+        _process_rc_channels();
+        if (rc_channels_callback != NULL)
+        {
+          rc_channels_callback(_rc_channels);
+        }
+        break;
+      default:
+        DEBUG_WARN("Unknown frame type: %02x", frameType);
+        break;
+      }
+      return true;
+    }
+    else
+    {
+      DEBUG_WARN("CRC check failed.");
+    }
+    // Reset the frame index
+    *frameIndex = 0;
+    return false;
+  }
+  else
+  {
+    _incoming_frame[*frameIndex++] = currentByte;
+    return true;
+  }
+
+  return false;
+}
+
+void crsf_send_telem()
+{
+  // Send telemetry
+  if (crsf_telem_update())
+  {
+    DEBUG_INFO("Sending telemetry frame");
+    for (size_t i = 0; i < _telem_buf.offset; i++)
+    {
+      uart_putc(_uart, _telem_buf.buffer[i]);
+    }
+  }
+}
+
 /**
  * @brief Processes incoming CRSF frames.
  *
@@ -400,7 +501,7 @@ bool crsf_telem_update()
  * @related crsf_set_on_link_statistics
  * @related crsf_set_on_failsafe
  */
-void crsf_process_frames()
+void crsf_process_frames() 
 {
   // check if there is data available to read
   uint8_t frameIndex = 0;
@@ -411,94 +512,10 @@ void crsf_process_frames()
   {
     // read the data
     uint8_t currentByte = uart_getc(_uart);
-    // Frame format:
-    // [sync] [len] [type] [payload] [crc8]
-    if (frameIndex == 0)
-    {
-      // Should be the sync byte (0xC8)
-      // "OpenTX/EdgeTX sends the channels packet starting with 0xEE instead of
-      // 0xC8, this has been incorrect since the first CRSF implementation."
-      if (currentByte != 0xC8 && currentByte != 0xEE)
-      {
-        DEBUG_WARN("Invalid sync byte: %04x", currentByte);
-        continue;
-      }
-      _incoming_frame[frameIndex++] = currentByte;
-    }
-    else if (frameIndex == 1)
-    {
-      // Should be the length byte
-      _incoming_frame[frameIndex++] = currentByte;
-      frameLength = currentByte;
-      crcIndex = frameLength + 1;
-      if (frameLength < 2 || frameLength > 62)
-      {
-        // Invalid frame length
-        frameIndex = 0;
-        DEBUG_WARN("Frame length out of range: %d", frameLength);
-        continue;
-      }
-    }
-    else if (frameIndex == crcIndex)
-    {
-      // We have read the entire frame
-      // Check the CRC
-      if (crsf_crc8(_incoming_frame + 2, frameLength - 1) == currentByte)
-      {
-        // Process the frame
-        const uint8_t frameType = _incoming_frame[2];
-        switch (frameType)
-        {
-        case CRSF_FRAMETYPE_LINK_STATISTICS:
-          _process_link_statistics();
-          if (link_statistics_callback != NULL)
-          {
-            link_statistics_callback(_link_statistics);
-          }
-          bool new_failsafe = calculate_failsafe();
-          if (new_failsafe != _failsafe)
-          {
-            _failsafe = new_failsafe;
-            if (failsafe_callback != NULL)
-            {
-              failsafe_callback(_failsafe);
-            }
-          }
-          break;
-        case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
-          _process_rc_channels();
-          if (rc_channels_callback != NULL)
-          {
-            rc_channels_callback(_rc_channels);
-          }
-          break;
-        default:
-          DEBUG_WARN("Unknown frame type: %02x", frameType);
-          break;
-        }
-      }
-      else
-      {
-        DEBUG_WARN("CRC check failed.");
-      }
-      // Reset the frame index
-      frameIndex = 0;
-    }
-    else
-    {
-      _incoming_frame[frameIndex++] = currentByte;
-    }
+    crsf_process_frame(&frameIndex, &frameLength, &crcIndex, currentByte);
   }
 
-  // Send telemetry
-  if (crsf_telem_update())
-  {
-    DEBUG_INFO("Sending telemetry frame");
-    for (size_t i = 0; i < _telem_buf.offset; i++)
-    {
-      uart_putc(_uart, _telem_buf.buffer[i]);
-    }
-  }
+  crsf_send_telem();
 }
 
 /**
@@ -520,7 +537,8 @@ void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t ca
 
 void crsf_telem_set_custom_payload(uint8_t *data, uint8_t length)
 {
-  if (length > 60) {
+  if (length > 60)
+  {
     return;
   }
   memcpy(_telemetry.custom.buffer, data, length);
