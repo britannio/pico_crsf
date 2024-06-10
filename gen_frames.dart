@@ -151,7 +151,7 @@ enum Payload {
   }
 
   void toCBuffer(StringBuffer str) {
-    str.write("void _write_${this.name}_payload()");
+    str.write("void _write_${this.name}_payload(crsf_instance *ins)");
     str.writeln();
     str.write("{");
     str.writeln();
@@ -170,7 +170,7 @@ enum Payload {
       _write_to_buffer(
         str,
         field.writeType,
-        "_telemetry.${name}.${field.name}",
+        "ins->telemetry.${name}.${field.name}",
       );
       str.writeln();
     }
@@ -179,7 +179,7 @@ enum Payload {
 
   void _write_to_buffer(StringBuffer str, CType type, String arg) {
     String writeFunc = type.writeStr;
-    str.write("\t${writeFunc}(&_telem_buf, $arg);");
+    str.write("\t${writeFunc}(&ins->telem_buf, $arg);");
   }
 
   static void toTelemetryStruct(StringBuffer buffer) {

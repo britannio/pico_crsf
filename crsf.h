@@ -16,14 +16,29 @@
 #include <stdint.h>
 #include "pico/stdlib.h"
 
-typedef struct {
+#define BAUD_RATE 420000
+#define CRSF_MAX_CHANNELS 16
+#define CRSF_MAX_FRAME_SIZE 64
+#define CRSF_DEBUG 0
+#if CRSF_DEBUG
+#include <stdio.h>
+#define DEBUG_WARN(...) fprintf(stderr, __VA_ARGS__)
+#define DEBUG_INFO(...) printf(__VA_ARGS__)
+#else
+#define DEBUG_WARN(...)
+#define DEBUG_INFO(...)
+#endif
+
+typedef struct
+{
 	uint8_t buffer[60];
 	uint8_t length;
 } crsf_payload_custom_t;
 
 // BEGIN gen_frames.dart
 // The values are CRSF channel values (0-1984). CRSF 172 represents 988us, CRSF 992 represents 1500us, and CRSF 1811 represents 2012us.
-typedef struct __attribute__((packed)) {
+typedef struct __attribute__((packed))
+{
 	unsigned channel0 : 11;
 	unsigned channel1 : 11;
 	unsigned channel2 : 11;
@@ -42,7 +57,8 @@ typedef struct __attribute__((packed)) {
 	unsigned channel15 : 11;
 } crsf_payload_rc_channels_packed_t;
 
-typedef struct {
+typedef struct
+{
 	// voltage in dV (Big Endian)
 	uint16_t voltage;
 	// current in dA (Big Endian)
@@ -53,7 +69,8 @@ typedef struct {
 	uint8_t percent;
 } crsf_payload_battery_sensor_t;
 
-typedef struct {
+typedef struct
+{
 	// Uplink RSSI Ant. 1 ( dBm * -1 )
 	uint8_t uplink_rssi_ant_1;
 	// Uplink RSSI Ant. 2 ( dBm * -1 )
@@ -96,18 +113,46 @@ typedef enum
 
 typedef struct
 {
-    uint8_t *buffer;
-    size_t capacity;
-    size_t offset;
+	uint8_t *buffer;
+	size_t capacity;
+	size_t offset;
 } buffer_t;
 
 typedef struct
 {
-    uint8_t rssi;
-    uint8_t link_quality;
-    int8_t snr;
-    uint16_t tx_power;
+	uint8_t rssi;
+	uint8_t link_quality;
+	int8_t snr;
+	uint16_t tx_power;
 } link_statistics_t;
+
+enum
+{
+  CRSF_BATTERY_INDEX = 0,
+  CRSF_CUSTOM_PAYLOAD_INDEX = 1,
+  // Add new frame types above
+  TELEMETRY_FRAME_TYPES
+};
+
+typedef struct
+{
+	uart_inst_t *uart = NULL;
+	uint8_t incoming_frame[CRSF_MAX_FRAME_SIZE];
+	uint16_t rc_channels[CRSF_MAX_CHANNELS];
+	link_statistics_t link_statistics;
+	bool failsafe;
+	uint8_t link_quality_threshold;
+	uint8_t rssi_threshold;
+
+	void (*rc_channels_callback)(const uint16_t channels[]);
+	void (*link_statistics_callback)(const link_statistics_t link_stats);
+	void (*failsafe_callback)(const bool failsafe);
+
+	uint8_t telem_buf_data[CRSF_MAX_FRAME_SIZE];
+	buffer_t telem_buf;
+	telemetry_t _telemetry;
+	bool frameHasData[TELEMETRY_FRAME_TYPES];
+} crsf_instance;
 
 #define TICKS_TO_US(x) ((x - 992.0f) * 5.0f / 8.0f + 1500.0f)
 
@@ -116,19 +161,18 @@ extern "C"
 {
 #endif
 
-    void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent);
-	void crsf_telem_set_custom_payload(uint8_t *data, uint8_t length);
-    void crsf_set_link_quality_threshold(uint8_t threshold);
-    void crsf_set_rssi_threshold(uint8_t threshold);
-    void crsf_set_on_rc_channels(void (*callback)(const uint16_t channels[16]));
-    void crsf_set_on_link_statistics(void (*callback)(const link_statistics_t link_stats));
-    void crsf_set_on_failsafe(void (*callback)(const bool failsafe));
-    void crsf_begin(uart_inst_t *uart, uint8_t rx, uint8_t tx);
-    void crsf_end();
-    void crsf_process_frames();
-	void crsf_send_telem();
-	bool crsf_process_frame(uint8_t *frameIndex, uint8_t *frameLength, uint8_t *crcIndex, uint8_t currentByte);
-
+	void crsf_telem_set_battery_data(crsf_instance *ins, uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent);
+	void crsf_telem_set_custom_payload(crsf_instance *ins, uint8_t *data, uint8_t length);
+	void crsf_set_link_quality_threshold(crsf_instance *ins, uint8_t threshold);
+	void crsf_set_rssi_threshold(crsf_instance *ins, uint8_t threshold);
+	void crsf_set_on_rc_channels(crsf_instance *ins, void (*callback)(const uint16_t channels[16]));
+	void crsf_set_on_link_statistics(crsf_instance *ins, void (*callback)(const link_statistics_t link_stats));
+	void crsf_set_on_failsafe(crsf_instance *ins, void (*callback)(const bool failsafe));
+	void crsf_begin(crsf_instance *ins, uart_inst_t *uart, uint8_t rx, uint8_t tx);
+	void crsf_end(crsf_instance *ins);
+	void crsf_process_frames(crsf_instance *ins);
+	void crsf_send_telem(crsf_instance *ins);
+	bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameLength, uint8_t *crcIndex, uint8_t currentByte);
 
 #ifdef __cplusplus
 }

@@ -19,57 +19,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define BAUD_RATE 420000
-#define CRSF_MAX_CHANNELS 16
-#define CRSF_MAX_FRAME_SIZE 64
-#define CRSF_DEBUG 0
-#if CRSF_DEBUG
-#include <stdio.h>
-#define DEBUG_WARN(...) fprintf(stderr, __VA_ARGS__)
-#define DEBUG_INFO(...) printf(__VA_ARGS__)
-#else
-#define DEBUG_WARN(...)
-#define DEBUG_INFO(...)
-#endif
-
-uart_inst_t *_uart = NULL;
-uint8_t _incoming_frame[CRSF_MAX_FRAME_SIZE];
-uint16_t _rc_channels[CRSF_MAX_CHANNELS];
-link_statistics_t _link_statistics;
-bool _failsafe = true;
-uint8_t _link_quality_threshold = 70;
-uint8_t _rssi_threshold = 105;
-
-void (*rc_channels_callback)(const uint16_t channels[]);
-void (*link_statistics_callback)(const link_statistics_t link_stats);
-void (*failsafe_callback)(const bool failsafe);
-
-uint8_t _telem_buf_data[CRSF_MAX_FRAME_SIZE];
-buffer_t _telem_buf = {
-    .buffer = _telem_buf_data,
-    .capacity = CRSF_MAX_FRAME_SIZE,
-    .offset = 0,
-};
-telemetry_t _telemetry;
-
-enum
-{
-  CRSF_BATTERY_INDEX = 0,
-  CRSF_CUSTOM_PAYLOAD_INDEX = 1,
-  // Add new frame types above
-  TELEMETRY_FRAME_TYPES
-};
-
-bool frameHasData[TELEMETRY_FRAME_TYPES] = {false};
-
 /**
  * Sets the callback function to be called when RC channels are received.
  *
  * @param callback A function pointer to the callback function that takes an array of uint16_t channels as input.
  */
-void crsf_set_on_rc_channels(void (*callback)(const uint16_t channels[16]))
+void crsf_set_on_rc_channels(crsf_instance *ins, void (*callback)(const uint16_t channels[16]))
 {
-  rc_channels_callback = callback;
+  ins->rc_channels_callback = callback;
 }
 
 /**
@@ -79,9 +36,9 @@ void crsf_set_on_rc_channels(void (*callback)(const uint16_t channels[16]))
  *
  * @param callback A pointer to the callback function.
  */
-void crsf_set_on_link_statistics(void (*callback)(const link_statistics_t link_stats))
+void crsf_set_on_link_statistics(crsf_instance *ins, void (*callback)(const link_statistics_t link_stats))
 {
-  link_statistics_callback = callback;
+  ins->link_statistics_callback = callback;
 }
 
 /**
@@ -89,9 +46,9 @@ void crsf_set_on_link_statistics(void (*callback)(const link_statistics_t link_s
  *
  * @param callback A function pointer to the callback function that takes a boolean parameter indicating the failsafe status.
  */
-void crsf_set_on_failsafe(void (*callback)(const bool failsafe))
+void crsf_set_on_failsafe(crsf_instance *ins, void (*callback)(const bool failsafe))
 {
-  failsafe_callback = callback;
+  ins->failsafe_callback = callback;
 }
 
 /**
@@ -102,9 +59,9 @@ void crsf_set_on_failsafe(void (*callback)(const bool failsafe))
  *
  * @param threshold The link quality threshold value, ranging from 0 to 100.
  */
-void crsf_set_link_quality_threshold(uint8_t threshold)
+void crsf_set_link_quality_threshold(crsf_instance *ins, uint8_t threshold)
 {
-  _link_quality_threshold = threshold;
+  ins->link_quality_threshold = threshold;
 }
 
 /**
@@ -112,9 +69,27 @@ void crsf_set_link_quality_threshold(uint8_t threshold)
  *
  * @param threshold The RSSI threshold value to set.
  */
-void crsf_set_rssi_threshold(uint8_t threshold)
+void crsf_set_rssi_threshold(crsf_instance *ins, uint8_t threshold)
 {
-  _rssi_threshold = threshold;
+  ins->rssi_threshold = threshold;
+}
+
+void crsf_init(crsf_instance* ins) {
+  ins->uart = NULL;
+  ins->failsafe = true;
+  ins->link_quality_threshold = 70;
+  ins->rssi_threshold = 105;
+  ins->telem_buf.offset = 0;
+  ins->telem_buf.capacity = CRSF_MAX_FRAME_SIZE;
+  ins->telem_buf.buffer = ins->telem_buf_data;
+  ins->rc_channels_callback = NULL;
+  ins->link_statistics_callback = NULL;
+  ins->failsafe_callback = NULL;
+  for (size_t i = 0; i < TELEMETRY_FRAME_TYPES; i++)
+  {
+    ins->frameHasData[i] = false;
+  }
+
 }
 
 /**
@@ -124,12 +99,13 @@ void crsf_set_rssi_threshold(uint8_t threshold)
  * @param tx The TX pin number.
  * @param rx The RX pin number.
  */
-void crsf_begin(uart_inst_t *uart, uint8_t tx, uint8_t rx)
-{
+void crsf_begin(crsf_instance *ins, uart_inst_t *uart, uint8_t tx, uint8_t rx)
+{ 
+  crsf_init(ins);
   // TODO support PIO UART
-  _uart = uart;
+  ins->uart = uart;
   // set up the UART
-  uart_init(_uart, BAUD_RATE);
+  uart_init(uart, BAUD_RATE);
   gpio_set_function(tx, GPIO_FUNC_UART);
   gpio_set_function(rx, GPIO_FUNC_UART);
 }
@@ -139,30 +115,30 @@ void crsf_begin(uart_inst_t *uart, uint8_t tx, uint8_t rx)
  *
  * This function deinitializes the UART used for CRSF communication.
  */
-void crsf_end()
+void crsf_end(crsf_instance *ins)
 {
-  uart_deinit(_uart);
+  uart_deinit(ins->uart);
 }
 
-void _process_rc_channels()
+void _process_rc_channels(crsf_instance *ins)
 {
-  const crsf_payload_rc_channels_packed_t *payload = (const crsf_payload_rc_channels_packed_t *)&_incoming_frame[3];
-  _rc_channels[0] = payload->channel0;
-  _rc_channels[1] = payload->channel1;
-  _rc_channels[2] = payload->channel2;
-  _rc_channels[3] = payload->channel3;
-  _rc_channels[4] = payload->channel4;
-  _rc_channels[5] = payload->channel5;
-  _rc_channels[6] = payload->channel6;
-  _rc_channels[7] = payload->channel7;
-  _rc_channels[8] = payload->channel8;
-  _rc_channels[9] = payload->channel9;
-  _rc_channels[10] = payload->channel10;
-  _rc_channels[11] = payload->channel11;
-  _rc_channels[12] = payload->channel12;
-  _rc_channels[13] = payload->channel13;
-  _rc_channels[14] = payload->channel14;
-  _rc_channels[15] = payload->channel15;
+  const crsf_payload_rc_channels_packed_t *payload = (const crsf_payload_rc_channels_packed_t *)&ins->incoming_frame[3];
+  ins->rc_channels[0] = payload->channel0;
+  ins->rc_channels[1] = payload->channel1;
+  ins->rc_channels[2] = payload->channel2;
+  ins->rc_channels[3] = payload->channel3;
+  ins->rc_channels[4] = payload->channel4;
+  ins->rc_channels[5] = payload->channel5;
+  ins->rc_channels[6] = payload->channel6;
+  ins->rc_channels[7] = payload->channel7;
+  ins->rc_channels[8] = payload->channel8;
+  ins->rc_channels[9] = payload->channel9;
+  ins->rc_channels[10] = payload->channel10;
+  ins->rc_channels[11] = payload->channel11;
+  ins->rc_channels[12] = payload->channel12;
+  ins->rc_channels[13] = payload->channel13;
+  ins->rc_channels[14] = payload->channel14;
+  ins->rc_channels[15] = payload->channel15;
 }
 
 const uint16_t tx_power_table[9] = {
@@ -177,21 +153,21 @@ const uint16_t tx_power_table[9] = {
     50    // 50 mW
 };
 
-void _process_link_statistics()
+void _process_link_statistics(crsf_instance* ins)
 {
-  const crsf_payload_link_statistics_t *link_stats_payload = (const crsf_payload_link_statistics_t *)&_incoming_frame[3];
-  _link_statistics.rssi = (link_stats_payload->diversity_active_antenna ? link_stats_payload->uplink_rssi_ant_2
+  const crsf_payload_link_statistics_t *link_stats_payload = (const crsf_payload_link_statistics_t *)&ins->incoming_frame[3];
+  ins->link_statistics.rssi = (link_stats_payload->diversity_active_antenna ? link_stats_payload->uplink_rssi_ant_2
                                                                         : link_stats_payload->uplink_rssi_ant_1);
-  _link_statistics.link_quality = link_stats_payload->uplink_package_success_rate;
-  _link_statistics.snr = link_stats_payload->uplink_snr;
-  _link_statistics.tx_power = (link_stats_payload->uplink_tx_power < 9)
+  ins->link_statistics.link_quality = link_stats_payload->uplink_package_success_rate;
+  ins->link_statistics.snr = link_stats_payload->uplink_snr;
+  ins->link_statistics.tx_power = (link_stats_payload->uplink_tx_power < 9)
                                   ? tx_power_table[link_stats_payload->uplink_tx_power]
                                   : 0;
 }
 
-bool calculate_failsafe()
+bool calculate_failsafe(crsf_instance* ins)
 {
-  return _link_statistics.link_quality <= _link_quality_threshold || _link_statistics.rssi >= _rssi_threshold;
+  return ins->link_statistics.link_quality <= ins->link_quality_threshold || ins->link_statistics.rssi >= ins->rssi_threshold;
 }
 
 uint8_t crsf_crc8(const uint8_t *ptr, uint8_t len)
@@ -322,37 +298,37 @@ void buf_write_i32(buffer_t *buf, int32_t data)
   }
 }
 
-void _begin_frame()
+void _begin_frame(crsf_instance *ins)
 {
-  buf_reset(&_telem_buf);
+  buf_reset(&ins->telem_buf);
   // Write sync byte
-  buf_write_ui8(&_telem_buf, 0xC8);
+  buf_write_ui8(&ins->telem_buf, 0xC8);
 }
 
-void _end_frame()
+void _end_frame(crsf_instance *ins)
 {
   // Skip sync byte and frame length
   const uint8_t bytesToSkip = 2;
-  const uint8_t *start = _telem_buf.buffer + bytesToSkip;
-  const uint8_t length = _telem_buf.offset - bytesToSkip;
+  const uint8_t *start = ins->telem_buf.buffer + bytesToSkip;
+  const uint8_t length = ins->telem_buf.offset - bytesToSkip;
   const uint8_t crc = crsf_crc8(start, length);
 
-  buf_write_ui8(&_telem_buf, crc);
+  buf_write_ui8(&ins->telem_buf, crc);
 }
 
 // BEGIN gen_frames.dart
-void _write_battery_sensor_payload()
+void _write_battery_sensor_payload(crsf_instance *ins)
 {
-  buf_write_ui8(&_telem_buf, 10);                            // Frame length
-  buf_write_ui8(&_telem_buf, CRSF_FRAMETYPE_BATTERY_SENSOR); // Frame type
-  buf_write_ui16(&_telem_buf, _telemetry.battery_sensor.voltage);
-  buf_write_ui16(&_telem_buf, _telemetry.battery_sensor.current);
-  buf_write_ui24(&_telem_buf, _telemetry.battery_sensor.capacity);
-  buf_write_ui8(&_telem_buf, _telemetry.battery_sensor.percent);
+  buf_write_ui8(&ins->telem_buf, 10);                            // Frame length
+  buf_write_ui8(&ins->telem_buf, CRSF_FRAMETYPE_BATTERY_SENSOR); // Frame type
+  buf_write_ui16(&ins->telem_buf, ins->telemetry.battery_sensor.voltage);
+  buf_write_ui16(&ins->telem_buf, ins->telemetry.battery_sensor.current);
+  buf_write_ui24(&ins->telem_buf, ins->telemetry.battery_sensor.capacity);
+  buf_write_ui8(&ins->telem_buf, ins->telemetry.battery_sensor.percent);
 }
 // END gen_frames.dart
 
-bool crsf_telem_update()
+bool crsf_telem_update(crsf_instance *ins)
 {
   bool updated = false;
   static int currentFrameType = 0;
@@ -363,22 +339,22 @@ bool crsf_telem_update()
 
     if (frameHasData[frameTypeIndex])
     {
-      _begin_frame();
+      _begin_frame(ins);
       switch (frameTypeIndex)
       {
       case CRSF_BATTERY_INDEX:
-        _write_battery_sensor_payload();
+        _write_battery_sensor_payload(ins);
         break;
       case CRSF_CUSTOM_PAYLOAD_INDEX:
-        buf_write_ui8(&_telem_buf, _telemetry.custom.length + 2);  // Frame length
+        buf_write_ui8(&_telem_buf, ins->telemetry.custom.length + 2);  // Frame length
         buf_write_ui8(&_telem_buf, CRSF_FRAMETYPE_CUSTOM_PAYLOAD); // Frame type
-        for (size_t i = 0; i < _telemetry.custom.length; i++)
+        for (size_t i = 0; i < ins->telemetry.custom.length; i++)
         {
-          buf_write_ui8(&_telem_buf, _telemetry.custom.buffer[i]);
+          buf_write_ui8(&ins->telem_buf, ins->telemetry.custom.buffer[i]);
         }
         break;
       }
-      _end_frame();
+      _end_frame(ins);
       updated = true;
       currentFrameType = (currentFrameType + 1) % TELEMETRY_FRAME_TYPES;
       break;
@@ -388,7 +364,7 @@ bool crsf_telem_update()
   return updated;
 }
 
-bool crsf_process_frame(uint8_t *frameIndex, uint8_t *frameLength, uint8_t *crcIndex, uint8_t currentByte)
+bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameLength, uint8_t *crcIndex, uint8_t currentByte)
 {
   // Frame format:
   // [sync] [len] [type] [payload] [crc8]
@@ -402,13 +378,13 @@ bool crsf_process_frame(uint8_t *frameIndex, uint8_t *frameLength, uint8_t *crcI
       DEBUG_WARN("Invalid sync byte: %04x", currentByte);
       return false;
     }
-    _incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[*frameIndex++] = currentByte;
     return true;
   }
   else if (*frameIndex == 1)
   {
     // Should be the length byte
-    _incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[*frameIndex++] = currentByte;
     *frameLength = currentByte;
     *crcIndex = *frameLength + 1;
     if (*frameLength < 2 || *frameLength > 62)
@@ -424,33 +400,33 @@ bool crsf_process_frame(uint8_t *frameIndex, uint8_t *frameLength, uint8_t *crcI
   {
     // We have read the entire frame
     // Check the CRC
-    if (crsf_crc8(_incoming_frame + 2, *frameLength - 1) == currentByte)
+    if (crsf_crc8(ins->incoming_frame + 2, *frameLength - 1) == currentByte)
     {
       // Process the frame
-      const uint8_t frameType = _incoming_frame[2];
+      const uint8_t frameType = ins->incoming_frame[2];
       switch (frameType)
       {
       case CRSF_FRAMETYPE_LINK_STATISTICS:
         _process_link_statistics();
         if (link_statistics_callback != NULL)
         {
-          link_statistics_callback(_link_statistics);
+          link_statistics_callback(ins->link_statistics);
         }
         bool new_failsafe = calculate_failsafe();
-        if (new_failsafe != _failsafe)
+        if (new_failsafe != ins->failsafe)
         {
-          _failsafe = new_failsafe;
+          ins->failsafe = new_failsafe;
           if (failsafe_callback != NULL)
           {
-            failsafe_callback(_failsafe);
+            failsafe_callback(ins->failsafe);
           }
         }
         break;
       case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
-        _process_rc_channels();
+        _process_rc_channels(ins);
         if (rc_channels_callback != NULL)
         {
-          rc_channels_callback(_rc_channels);
+          rc_channels_callback(ins->rc_channels);
         }
         break;
       default:
@@ -469,22 +445,22 @@ bool crsf_process_frame(uint8_t *frameIndex, uint8_t *frameLength, uint8_t *crcI
   }
   else
   {
-    _incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[*frameIndex++] = currentByte;
     return true;
   }
 
   return false;
 }
 
-void crsf_send_telem()
+void crsf_send_telem(crsf_instance *ins)
 {
   // Send telemetry
-  if (crsf_telem_update())
+  if (crsf_telem_update(ins))
   {
     DEBUG_INFO("Sending telemetry frame");
-    for (size_t i = 0; i < _telem_buf.offset; i++)
+    for (size_t i = 0; i < ins->telem_buf.offset; i++)
     {
-      uart_putc(_uart, _telem_buf.buffer[i]);
+      uart_putc(ins->uart, ins->telem_buf.buffer[i]);
     }
   }
 }
@@ -501,17 +477,17 @@ void crsf_send_telem()
  * @related crsf_set_on_link_statistics
  * @related crsf_set_on_failsafe
  */
-void crsf_process_frames() 
+void crsf_process_frames(crsf_instance *ins)
 {
   // check if there is data available to read
   uint8_t frameIndex = 0;
   uint8_t frameLength = 0;
   uint8_t crcIndex = 0;
   // It takes 23.8095238095 µs to receive the next byte at 420000 baud
-  while (uart_is_readable_within_us(_uart, 24))
+  while (uart_is_readable_within_us(ins->uart, 24))
   {
     // read the data
-    uint8_t currentByte = uart_getc(_uart);
+    uint8_t currentByte = uart_getc(ins->uart);
     crsf_process_frame(&frameIndex, &frameLength, &crcIndex, currentByte);
   }
 
@@ -526,22 +502,22 @@ void crsf_process_frames()
  * @param capacity The battery capacity in mAH
  * @param percent The battery percentage remaining.
  */
-void crsf_telem_set_battery_data(uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent)
+void crsf_telem_set_battery_data(crsf_instance *ins, uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent)
 {
-  _telemetry.battery_sensor.voltage = voltage;
-  _telemetry.battery_sensor.current = current;
-  _telemetry.battery_sensor.capacity = capacity;
-  _telemetry.battery_sensor.percent = percent;
+  ins->telemetry.battery_sensor.voltage = voltage;
+  ins->telemetry.battery_sensor.current = current;
+  ins->telemetry.battery_sensor.capacity = capacity;
+  ins->telemetry.battery_sensor.percent = percent;
   frameHasData[CRSF_BATTERY_INDEX] = true;
 }
 
-void crsf_telem_set_custom_payload(uint8_t *data, uint8_t length)
+void crsf_telem_set_custom_payload(crsf_instance *ins, uint8_t *data, uint8_t length)
 {
   if (length > 60)
   {
     return;
   }
-  memcpy(_telemetry.custom.buffer, data, length);
-  _telemetry.custom.length = length;
+  memcpy(ins->telemetry.custom.buffer, data, length);
+  ins->telemetry.custom.length = length;
   frameHasData[CRSF_CUSTOM_PAYLOAD_INDEX] = true;
 }
