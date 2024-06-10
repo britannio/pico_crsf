@@ -101,7 +101,6 @@ void crsf_init(crsf_instance* ins) {
  */
 void crsf_begin(crsf_instance *ins, uart_inst_t *uart, uint8_t tx, uint8_t rx)
 { 
-  crsf_init(ins);
   // TODO support PIO UART
   ins->uart = uart;
   // set up the UART

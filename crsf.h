@@ -161,6 +161,7 @@ extern "C"
 {
 #endif
 
+	void crsf_init(crsf_instance* ins);
 	void crsf_telem_set_battery_data(crsf_instance *ins, uint16_t voltage, uint16_t current, uint32_t capacity, uint8_t percent);
 	void crsf_telem_set_custom_payload(crsf_instance *ins, uint8_t *data, uint8_t length);
 	void crsf_set_link_quality_threshold(crsf_instance *ins, uint8_t threshold);
