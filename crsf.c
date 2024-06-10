@@ -30,6 +30,17 @@ void crsf_set_on_rc_channels(crsf_instance *ins, void (*callback)(const uint16_t
 }
 
 /**
+ * Sets the callback function to be called when battery sensor data is received.
+ *
+ * @param ins The CRSF instance.
+ * @param callback A function pointer to the callback function that takes a `crsf_payload_battery_sensor_t` structure as input.
+ */
+void crsf_set_on_battery(crsf_instance *ins, void (*callback)(const crsf_payload_battery_sensor_t battery))
+{
+  ins->battery_callback = callback;
+}
+
+/**
  * Sets the callback function for link statistics.
  *
  * This function sets the callback function that will be called when link statistics are available.
@@ -152,6 +163,10 @@ const uint16_t tx_power_table[9] = {
     50    // 50 mW
 };
 
+void _process_battery_sensor(crsf_instance* ins) {
+  const crsf_payload_battery_sensor_t *battery_payload = (const crsf_payload_battery_sensor_t *)&ins->incoming_frame[3];
+  ins->rx_battery = *battery_payload;
+}
 void _process_link_statistics(crsf_instance* ins)
 {
   const crsf_payload_link_statistics_t *link_stats_payload = (const crsf_payload_link_statistics_t *)&ins->incoming_frame[3];
@@ -166,7 +181,7 @@ void _process_link_statistics(crsf_instance* ins)
 
 bool calculate_failsafe(crsf_instance* ins)
 {
-  return ins->link_statistics.link_quality <= ins->link_quality_threshold || ins->link_statistics.rssi >= ins->rssi_threshold;
+  return ins->link_statistics.link_quality < ins->link_quality_threshold || ins->link_statistics.rssi > ins->rssi_threshold;
 }
 
 uint8_t crsf_crc8(const uint8_t *ptr, uint8_t len)
@@ -336,7 +351,7 @@ bool crsf_telem_update(crsf_instance *ins)
   {
     int frameTypeIndex = (currentFrameType + i) % TELEMETRY_FRAME_TYPES;
 
-    if (frameHasData[frameTypeIndex])
+    if (ins->frameHasData[frameTypeIndex])
     {
       _begin_frame(ins);
       switch (frameTypeIndex)
@@ -345,8 +360,8 @@ bool crsf_telem_update(crsf_instance *ins)
         _write_battery_sensor_payload(ins);
         break;
       case CRSF_CUSTOM_PAYLOAD_INDEX:
-        buf_write_ui8(&_telem_buf, ins->telemetry.custom.length + 2);  // Frame length
-        buf_write_ui8(&_telem_buf, CRSF_FRAMETYPE_CUSTOM_PAYLOAD); // Frame type
+        buf_write_ui8(&ins->telem_buf, ins->telemetry.custom.length + 2);  // Frame length
+        buf_write_ui8(&ins->telem_buf, CRSF_FRAMETYPE_CUSTOM_PAYLOAD); // Frame type
         for (size_t i = 0; i < ins->telemetry.custom.length; i++)
         {
           buf_write_ui8(&ins->telem_buf, ins->telemetry.custom.buffer[i]);
@@ -405,27 +420,33 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
       const uint8_t frameType = ins->incoming_frame[2];
       switch (frameType)
       {
-      case CRSF_FRAMETYPE_LINK_STATISTICS:
-        _process_link_statistics();
-        if (link_statistics_callback != NULL)
+      case CRSF_FRAMETYPE_BATTERY_SENSOR:
+        _process_battery_sensor(ins);
+        if (ins->battery_callback != NULL)
         {
-          link_statistics_callback(ins->link_statistics);
+          ins->battery_callback(ins->rx_battery);
         }
-        bool new_failsafe = calculate_failsafe();
+      case CRSF_FRAMETYPE_LINK_STATISTICS:
+        _process_link_statistics(ins);
+        if (ins->link_statistics_callback != NULL)
+        {
+          ins->link_statistics_callback(ins->link_statistics);
+        }
+        bool new_failsafe = calculate_failsafe(ins);
         if (new_failsafe != ins->failsafe)
         {
           ins->failsafe = new_failsafe;
-          if (failsafe_callback != NULL)
+          if (ins->failsafe_callback != NULL)
           {
-            failsafe_callback(ins->failsafe);
+            ins->failsafe_callback(ins->failsafe);
           }
         }
         break;
       case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
         _process_rc_channels(ins);
-        if (rc_channels_callback != NULL)
+        if (ins->rc_channels_callback != NULL)
         {
-          rc_channels_callback(ins->rc_channels);
+          ins->rc_channels_callback(ins->rc_channels);
         }
         break;
       default:
@@ -487,10 +508,10 @@ void crsf_process_frames(crsf_instance *ins)
   {
     // read the data
     uint8_t currentByte = uart_getc(ins->uart);
-    crsf_process_frame(&frameIndex, &frameLength, &crcIndex, currentByte);
+    crsf_process_frame(ins, &frameIndex, &frameLength, &crcIndex, currentByte);
   }
 
-  crsf_send_telem();
+  crsf_send_telem(ins);
 }
 
 /**
@@ -507,7 +528,7 @@ void crsf_telem_set_battery_data(crsf_instance *ins, uint16_t voltage, uint16_t 
   ins->telemetry.battery_sensor.current = current;
   ins->telemetry.battery_sensor.capacity = capacity;
   ins->telemetry.battery_sensor.percent = percent;
-  frameHasData[CRSF_BATTERY_INDEX] = true;
+  ins->frameHasData[CRSF_BATTERY_INDEX] = true;
 }
 
 void crsf_telem_set_custom_payload(crsf_instance *ins, uint8_t *data, uint8_t length)
@@ -518,5 +539,5 @@ void crsf_telem_set_custom_payload(crsf_instance *ins, uint8_t *data, uint8_t le
   }
   memcpy(ins->telemetry.custom.buffer, data, length);
   ins->telemetry.custom.length = length;
-  frameHasData[CRSF_CUSTOM_PAYLOAD_INDEX] = true;
+  ins->frameHasData[CRSF_CUSTOM_PAYLOAD_INDEX] = true;
 }

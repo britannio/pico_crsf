@@ -136,10 +136,11 @@ enum
 
 typedef struct
 {
-	uart_inst_t *uart = NULL;
+	uart_inst_t *uart;
 	uint8_t incoming_frame[CRSF_MAX_FRAME_SIZE];
 	uint16_t rc_channels[CRSF_MAX_CHANNELS];
 	link_statistics_t link_statistics;
+	crsf_payload_battery_sensor_t rx_battery;
 	bool failsafe;
 	uint8_t link_quality_threshold;
 	uint8_t rssi_threshold;
@@ -147,10 +148,11 @@ typedef struct
 	void (*rc_channels_callback)(const uint16_t channels[]);
 	void (*link_statistics_callback)(const link_statistics_t link_stats);
 	void (*failsafe_callback)(const bool failsafe);
+	void (*battery_callback)(const crsf_payload_battery_sensor_t battery);
 
 	uint8_t telem_buf_data[CRSF_MAX_FRAME_SIZE];
 	buffer_t telem_buf;
-	telemetry_t _telemetry;
+	telemetry_t telemetry;
 	bool frameHasData[TELEMETRY_FRAME_TYPES];
 } crsf_instance;
 
@@ -167,6 +169,7 @@ extern "C"
 	void crsf_set_link_quality_threshold(crsf_instance *ins, uint8_t threshold);
 	void crsf_set_rssi_threshold(crsf_instance *ins, uint8_t threshold);
 	void crsf_set_on_rc_channels(crsf_instance *ins, void (*callback)(const uint16_t channels[16]));
+	void crsf_set_on_battery(crsf_instance *ins, void (*callback)(const crsf_payload_battery_sensor_t battery));
 	void crsf_set_on_link_statistics(crsf_instance *ins, void (*callback)(const link_statistics_t link_stats));
 	void crsf_set_on_failsafe(crsf_instance *ins, void (*callback)(const bool failsafe));
 	void crsf_begin(crsf_instance *ins, uart_inst_t *uart, uint8_t rx, uint8_t tx);
