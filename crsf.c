@@ -96,6 +96,7 @@ void crsf_init(crsf_instance* ins) {
   ins->rc_channels_callback = NULL;
   ins->link_statistics_callback = NULL;
   ins->failsafe_callback = NULL;
+  ins->currentFrameType = 0;
   for (size_t i = 0; i < TELEMETRY_FRAME_TYPES; i++)
   {
     ins->frameHasData[i] = false;
@@ -345,11 +346,10 @@ void _write_battery_sensor_payload(crsf_instance *ins)
 bool crsf_telem_update(crsf_instance *ins)
 {
   bool updated = false;
-  static int currentFrameType = 0;
 
   for (int i = 0; i < TELEMETRY_FRAME_TYPES; i++)
   {
-    int frameTypeIndex = (currentFrameType + i) % TELEMETRY_FRAME_TYPES;
+    int frameTypeIndex = (ins->currentFrameType + i) % TELEMETRY_FRAME_TYPES;
 
     if (ins->frameHasData[frameTypeIndex])
     {
@@ -370,7 +370,7 @@ bool crsf_telem_update(crsf_instance *ins)
       }
       _end_frame(ins);
       updated = true;
-      currentFrameType = (currentFrameType + 1) % TELEMETRY_FRAME_TYPES;
+      ins->currentFrameType = (ins->currentFrameType + 1) % TELEMETRY_FRAME_TYPES;
       break;
     }
   }
@@ -392,13 +392,13 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
       DEBUG_WARN("Invalid sync byte: %04x", currentByte);
       return false;
     }
-    ins->incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[(*frameIndex)++] = currentByte;
     return true;
   }
   else if (*frameIndex == 1)
   {
     // Should be the length byte
-    ins->incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[(*frameIndex)++] = currentByte;
     *frameLength = currentByte;
     *crcIndex = *frameLength + 1;
     if (*frameLength < 2 || *frameLength > 62)
@@ -426,6 +426,7 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
         {
           ins->battery_callback(ins->rx_battery);
         }
+        break;
       case CRSF_FRAMETYPE_LINK_STATISTICS:
         _process_link_statistics(ins);
         if (ins->link_statistics_callback != NULL)
@@ -453,6 +454,7 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
         DEBUG_WARN("Unknown frame type: %02x", frameType);
         break;
       }
+      *frameIndex = 0;
       return true;
     }
     else
@@ -465,7 +467,7 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
   }
   else
   {
-    ins->incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[(*frameIndex)++] = currentByte;
     return true;
   }
 

@@ -154,6 +154,7 @@ typedef struct
 	buffer_t telem_buf;
 	telemetry_t telemetry;
 	bool frameHasData[TELEMETRY_FRAME_TYPES];
+	int currentFrameType;
 } crsf_instance;
 
 #define TICKS_TO_US(x) ((x - 992.0f) * 5.0f / 8.0f + 1500.0f)
