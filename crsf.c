@@ -392,13 +392,13 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
       DEBUG_WARN("Invalid sync byte: %04x", currentByte);
       return false;
     }
-    ins->incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[(*frameIndex)++] = currentByte;
     return true;
   }
   else if (*frameIndex == 1)
   {
     // Should be the length byte
-    ins->incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[(*frameIndex)++] = currentByte;
     *frameLength = currentByte;
     *crcIndex = *frameLength + 1;
     if (*frameLength < 2 || *frameLength > 62)
@@ -426,6 +426,7 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
         {
           ins->battery_callback(ins->rx_battery);
         }
+        break;
       case CRSF_FRAMETYPE_LINK_STATISTICS:
         _process_link_statistics(ins);
         if (ins->link_statistics_callback != NULL)
@@ -453,6 +454,7 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
         DEBUG_WARN("Unknown frame type: %02x", frameType);
         break;
       }
+      *frameIndex = 0;
       return true;
     }
     else
@@ -465,7 +467,7 @@ bool crsf_process_frame(crsf_instance *ins, uint8_t *frameIndex, uint8_t *frameL
   }
   else
   {
-    ins->incoming_frame[*frameIndex++] = currentByte;
+    ins->incoming_frame[(*frameIndex)++] = currentByte;
     return true;
   }
 
